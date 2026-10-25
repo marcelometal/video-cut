@@ -173,7 +173,7 @@ class ExportService:
         target_height = target_height - (target_height % 2)
 
         # 3. Assemble command inputs
-        cmd = ["ffmpeg", FLAG_OVERWRITE]
+        cmd = [FFmpegService.get_binary_path(), FLAG_OVERWRITE]
         for p in unique_paths:
             min_s = path_to_min_start[p]
             if min_s > 0.0:
@@ -331,6 +331,7 @@ class ExportService:
                     stderr=subprocess.PIPE,
                     text=True,
                     bufsize=1,
+                    creationflags=SUBPROCESS_FLAGS,
                 )
 
                 stderr_lines: list[str] = []
