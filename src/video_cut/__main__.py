@@ -81,6 +81,47 @@ def _init_windows_environment() -> None:
     except OSError:
         pass
 
+    # 6. Initialize Windows Sockets (Winsock) early
+    try:
+        import ctypes
+        wsa_data = ctypes.create_string_buffer(512)
+        ctypes.windll.ws2_32.WSAStartup(0x0202, wsa_data)
+    except Exception:
+        pass
+
+    # 7. Protect against PyGObject [WinError 10093] during signal helper socketpair setup
+    try:
+        from contextlib import contextmanager
+
+        import gi._ossighelper
+
+        orig_wakeup = getattr(gi._ossighelper, "wakeup_on_signal", None)
+        if orig_wakeup is not None:
+            @contextmanager
+            def _safe_wakeup():
+                try:
+                    with orig_wakeup():
+                        yield
+                except OSError:
+                    yield
+
+            gi._ossighelper.wakeup_on_signal = _safe_wakeup
+
+        dummy_loop = getattr(gi._ossighelper, "DummyEventLoop", None)
+        if dummy_loop is not None:
+            @classmethod
+            @contextmanager
+            def _safe_running(cls, quit_func):
+                try:
+                    with gi._ossighelper.wakeup_on_signal():
+                        yield
+                except Exception:
+                    yield
+
+            dummy_loop.running = _safe_running
+    except Exception:
+        pass
+
 
 _init_windows_environment()
 
@@ -100,7 +141,7 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         prog="video-cut",
-        description="Fast, simple video and image editor for Linux.",
+        description="Fast, simple video and image editor.",
     )
     parser.add_argument(
         "-v",
@@ -118,16 +159,42 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    if argv is None:
-        argv = sys.argv
+    try:
+        if argv is None:
+            argv = sys.argv
 
-    GLib.set_prgname(APP_ID)
-    GLib.set_application_name(APP_NAME)
+        GLib.set_prgname(APP_ID)
+        GLib.set_application_name(APP_NAME)
 
-    parsed = parse_args(argv[1:])
+        parsed = parse_args(argv[1:])
 
-    app = VideoCutApplication(initial_files=parsed.files)
-    return app.run([argv[0]])
+        app = VideoCutApplication(initial_files=parsed.files)
+        return app.run([argv[0]])
+    except Exception as e:
+        import traceback
+
+        tb_str = traceback.format_exc()
+        try:
+            appdata = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or str(Path.home())
+            log_p = Path(appdata) / "VideoCut" / "crash.log"
+            log_p.parent.mkdir(parents=True, exist_ok=True)
+            log_p.write_text(tb_str, encoding="utf-8")
+        except Exception:
+            pass
+        if sys.platform == "win32":
+            try:
+                import ctypes
+
+                ctypes.windll.user32.MessageBoxW(
+                    0,
+                    f"Video Cut encountered an error:\n\n{e}\n\nCheck crash.log for details.",
+                    "Video Cut - Startup Error",
+                    0x10,
+                )
+            except Exception:
+                pass
+        sys.stderr.write(tb_str)
+        return 1
 
 
 if __name__ == "__main__":
