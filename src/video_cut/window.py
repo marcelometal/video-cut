@@ -1282,7 +1282,7 @@ class MainWindow(Adw.ApplicationWindow):
             comments=_(
                 "An easy-to-use video editor to cut and merge videos, add images, crop, and rotate"
             ),
-            website="https://github.com/thor27/video-cut",
+            website="https://thor27.github.io/video-cut",
             issue_url="https://github.com/thor27/video-cut/issues",
             support_url="https://github.com/thor27/video-cut/discussions",
             copyright="© 2024–2026 Thomaz Reis",

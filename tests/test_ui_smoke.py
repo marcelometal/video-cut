@@ -457,7 +457,7 @@ def test_about_dialog_metadata():
             finally:
                 Adw.AboutWindow = original_about
 
-            assert captured.get("website") == "https://github.com/thor27/video-cut"
+            assert captured.get("website") == "https://thor27.github.io/video-cut"
             assert captured.get("issue_url") == "https://github.com/thor27/video-cut/issues"
             assert captured.get("support_url") == "https://github.com/thor27/video-cut/discussions"
             assert "Thomaz Reis" in (captured.get("copyright") or "")
