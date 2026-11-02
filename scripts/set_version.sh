@@ -77,17 +77,6 @@ if [ -f "${METAINFO}" ]; then
     cp "${METAINFO}" "${REPO_ROOT}/src/video_cut/resources/" 2>/dev/null || true
 fi
 
-# Update site/index.html if present
-SITE_INDEX="${REPO_ROOT}/site/index.html"
-if [ -f "${SITE_INDEX}" ]; then
-    echo "==> Updating version in ${SITE_INDEX}..."
-    sed -i "s/VideoCut-${CURRENT_VERSION}-x86_64\.AppImage/VideoCut-${NEW_VERSION}-x86_64.AppImage/g" "${SITE_INDEX}"
-    sed -i "s/VideoCut-${CURRENT_VERSION}\.flatpak/VideoCut-${NEW_VERSION}.flatpak/g" "${SITE_INDEX}"
-    sed -i "s/\/download\/v${CURRENT_VERSION}\//\/download\/v${NEW_VERSION}\//g" "${SITE_INDEX}"
-    sed -i "s/data-version=\"${CURRENT_VERSION}\"/data-version=\"${NEW_VERSION}\"/g" "${SITE_INDEX}"
-    sed -i "s/v${CURRENT_VERSION}/v${NEW_VERSION}/g" "${SITE_INDEX}"
-fi
-
 # Verify update
 UPDATED_VERSION="$(get_current_version)"
 if [ "$UPDATED_VERSION" != "$NEW_VERSION" ]; then
