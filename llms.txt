@@ -1,0 +1,48 @@
+# Video Cut
+
+> Fast, lightweight, and lossless video editor built natively for Linux with GTK4 and Libadwaita.
+
+Video Cut is a free and open-source desktop video editor designed specifically for modern Linux desktops (GNOME / Libadwaita). It enables users to cut, trim, split, merge, crop, rotate, and combine video clips and still images without painful render times or quality loss.
+
+- **Website**: https://thor27.github.io/video-cut/
+- **Repository**: https://github.com/thor27/video-cut
+- **Releases**: https://github.com/thor27/video-cut/releases
+- **License**: GNU General Public License v3.0 (GPL-3.0)
+- **Primary Platform**: Linux (x86_64)
+
+## Key Capabilities
+
+1. **Lossless Cutting & Keyframe Splitting**:
+   - Split video segments with keyframe boundary snapping.
+   - Reorder, duplicate, copy/paste, or delete clips on a visual multi-segment timeline.
+   - Stream copy export mode to preserve original video/audio quality without re-encoding.
+
+2. **Visual Crop & Rotate**:
+   - Interactive crop selection rectangle with real-time preview.
+   - Quick aspect ratio presets: 16:9 (Widescreen), 9:16 (TikTok / YouTube Shorts / Instagram Reels), 1:1 (Square), 4:3, 21:9.
+   - 90°, 180°, 270° clockwise and counter-clockwise rotation.
+   - Horizontal and vertical flipping (mirroring).
+
+3. **Mixed Media & Photo Import**:
+   - Import still photos and images (PNG, JPEG, WebP) directly into video timelines.
+   - Configure per-image display duration.
+   - Attach soundtrack audio files (MP3, WAV, AAC, FLAC, Ogg) with configurable start offset and duration slicing.
+
+4. **Advanced Export & Codecs**:
+   - Supports popular containers: MP4 (.mp4), Matroska (.mkv), WebM (.webm).
+   - Hardware-accelerated and software video codecs: H.264 / AVC, H.265 / HEVC, VP9, AV1.
+   - Audio codecs: AAC, MP3, Opus, FLAC, Vorbis.
+   - Configurable CRF quality, bitrates, resolutions, and frame rates.
+
+5. **Native GNOME Desktop Integration**:
+   - Native GTK4 and Libadwaita design language.
+   - Dynamic system dark and light theme following.
+   - Keyboard navigation and drag-and-drop support.
+   - 100% offline, private, and local execution with zero cloud telemetry.
+
+## Packaging & Installation
+
+- **AppImage**: Download portable VideoCut-0.3.0-x86_64.AppImage directly from GitHub Releases.
+- **Snap**: Install from the Canonical Snap Store: `sudo snap install video-cut`
+- **Flatpak**: Available as a standalone .flatpak bundle from GitHub Releases.
+- **Source Code**: Clone `https://github.com/thor27/video-cut.git` and run with Python 3.11+ and PyGObject.

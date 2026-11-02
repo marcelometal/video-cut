@@ -58,11 +58,25 @@ sed -i "s/VideoCut-${CURRENT_VERSION}-x86_64\.AppImage/VideoCut-${TARGET_VERSION
 sed -i "s/VideoCut-${CURRENT_VERSION}\.flatpak/VideoCut-${TARGET_VERSION}.flatpak/g" "${INDEX_FILE}"
 sed -i "s/\/download\/v${CURRENT_VERSION}\//\/download\/v${TARGET_VERSION}\//g" "${INDEX_FILE}"
 sed -i "s/data-version=\"${CURRENT_VERSION}\"/data-version=\"${TARGET_VERSION}\"/g" "${INDEX_FILE}"
+sed -i "s/\"softwareVersion\": \"${CURRENT_VERSION}\"/\"softwareVersion\": \"${TARGET_VERSION}\"/g" "${INDEX_FILE}"
 sed -i "s/v${CURRENT_VERSION}/v${TARGET_VERSION}/g" "${INDEX_FILE}"
 
-echo "==> Successfully updated index.html to v${TARGET_VERSION}!"
+LLMS_FILE="${SCRIPT_DIR}/llms.txt"
+if [ -f "${LLMS_FILE}" ]; then
+    echo "==> Updating llms.txt to ${TARGET_VERSION}..."
+    sed -i "s/VideoCut-${CURRENT_VERSION}-x86_64\.AppImage/VideoCut-${TARGET_VERSION}-x86_64.AppImage/g" "${LLMS_FILE}"
+fi
+
+SITEMAP_FILE="${SCRIPT_DIR}/sitemap.xml"
+if [ -f "${SITEMAP_FILE}" ]; then
+    TODAY="$(date +%Y-%m-%d)"
+    echo "==> Updating sitemap.xml lastmod to ${TODAY}..."
+    sed -i -E "s|<lastmod>[0-9]{4}-[0-9]{2}-[0-9]{2}</lastmod>|<lastmod>${TODAY}</lastmod>|g" "${SITEMAP_FILE}"
+fi
+
+echo "==> Successfully updated site files to v${TARGET_VERSION}!"
 echo ""
 echo "Next steps:"
-echo "  1. Review changes: git diff index.html"
+echo "  1. Review changes: git diff"
 echo "  2. Commit:        git commit -am 'chore: update site to v${TARGET_VERSION}'"
 echo "  3. Deploy:        git push origin gh-pages"

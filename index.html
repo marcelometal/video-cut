@@ -3,22 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Video Cut — Fast & Simple Video Editing for Linux</title>
-  <meta name="description" content="Trim, split, crop, rotate, and combine video clips and photos with zero quality loss. Fast, native GTK4/Libadwaita video editor for Linux.">
-  <meta name="keywords" content="video cut, video editor, linux video editor, gtk4, libadwaita, lossless video cut, ffmpeg, appimage, snap">
+  <title>Video Cut — Fast, Lossless Video Trimming &amp; Editing for Linux (GTK4 / Libadwaita)</title>
+  <meta name="description" content="Fast, lightweight, and lossless video editor for Linux desktops. Trim, split, crop to 9:16 or 16:9, rotate, and combine videos and photos with zero quality loss. Native GTK4/Libadwaita.">
+  <meta name="keywords" content="video cut, video editor, linux video editor, gtk4, libadwaita, lossless video cut, ffmpeg, appimage, snap, flatpak, fast video trimmer">
   <meta name="author" content="Thomaz de Oliveira dos Reis">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+  <link rel="canonical" href="https://thor27.github.io/video-cut/">
 
   <!-- Open Graph / Facebook / Discord -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Video Cut — Fast & Simple Video Editing for Linux">
-  <meta property="og:description" content="Trim, split, crop, rotate, and combine videos and photos with zero quality loss. Native GTK4 and Libadwaita app.">
-  <meta property="og:image" content="assets/video-cut-banner.jpg">
+  <meta property="og:url" content="https://thor27.github.io/video-cut/">
+  <meta property="og:title" content="Video Cut — Fast, Lossless Video Trimming &amp; Editing for Linux">
+  <meta property="og:description" content="Trim, split, crop, rotate, and combine video clips and photos with zero quality loss. Native GTK4 &amp; Libadwaita video editor for Linux.">
+  <meta property="og:image" content="https://thor27.github.io/video-cut/assets/video-cut-banner.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Video Cut — Linux Video Editor Interface">
+  <meta property="og:site_name" content="Video Cut">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Video Cut — Fast & Simple Video Editing for Linux">
-  <meta name="twitter:description" content="Trim, split, crop, rotate, and combine videos and photos with zero quality loss. Native GTK4 and Libadwaita app.">
-  <meta name="twitter:image" content="assets/video-cut-banner.jpg">
+  <meta name="twitter:url" content="https://thor27.github.io/video-cut/">
+  <meta name="twitter:title" content="Video Cut — Fast, Lossless Video Trimming &amp; Editing for Linux">
+  <meta name="twitter:description" content="Trim, split, crop, rotate, and combine video clips and photos with zero quality loss. Native GTK4 &amp; Libadwaita video editor for Linux.">
+  <meta name="twitter:image" content="https://thor27.github.io/video-cut/assets/video-cut-banner.jpg">
+  <meta name="twitter:image:alt" content="Video Cut — Linux Video Editor Interface">
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
@@ -29,6 +38,102 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <!-- Structured Data: JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://thor27.github.io/video-cut/#website",
+        "url": "https://thor27.github.io/video-cut/",
+        "name": "Video Cut",
+        "description": "Fast, native GTK4 & Libadwaita video editor for Linux.",
+        "inLanguage": "en"
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://thor27.github.io/video-cut/#software",
+        "name": "Video Cut",
+        "operatingSystem": "Linux",
+        "applicationCategory": "MultimediaApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "description": "Trim, split, crop, rotate, and combine video clips and photos with zero quality loss. Fast, native GTK4/Libadwaita video editor for Linux desktops.",
+        "softwareVersion": "0.3.0",
+        "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+        "downloadUrl": "https://github.com/thor27/video-cut/releases",
+        "screenshot": [
+          "https://thor27.github.io/video-cut/assets/screenshot_hero_dark.png",
+          "https://thor27.github.io/video-cut/assets/screenshot_hero_light.png"
+        ],
+        "featureList": [
+          "Lossless cutting and trimming via FFmpeg stream copy",
+          "Lossless splitting at cursor position",
+          "Aspect ratio framing presets (16:9, 9:16, 4:3, 1:1, 21:9)",
+          "Rotation and flipping tools",
+          "Mixed media support for videos, photos, and audio tracks",
+          "Native GTK4 and Libadwaita UI with auto dark/light theme switching"
+        ],
+        "author": {
+          "@type": "Person",
+          "name": "Thomaz de Oliveira dos Reis",
+          "url": "https://github.com/thor27"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://thor27.github.io/video-cut/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What makes Video Cut \"lossless\"?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "When trimming or splitting video segments without re-encoding, Video Cut uses FFmpeg stream copy mode (-c copy). Video and audio streams are copied directly without decoding and recompression, resulting in zero quality degradation and near-instant processing."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does Video Cut integrate with GNOME and Linux desktops?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Video Cut is crafted natively in Python, GTK4, and Libadwaita. It complies with GNOME Human Interface Guidelines (HIG), automatically follows system dark and light modes and accent colors, and provides seamless Wayland, clipboard, and drag-and-drop support."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What video and audio formats are supported?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Video Cut supports all popular video and audio formats handled by FFmpeg, including MP4, MKV, WebM, MOV, AVI, TS, MP3, AAC, FLAC, OGG, and WAV. You can also mix still images (PNG, JPEG, WebP) directly into projects."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I install Video Cut on my Linux distribution?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Video Cut is distributed as a universal AppImage for all Linux distributions, a Snap package from the Snap Store (sudo snap install video-cut), a standalone Flatpak bundle, and directly from source via GitHub."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Video Cut free and open source?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, Video Cut is 100% free and open source software licensed under the GNU General Public License v3.0 (GPL-3.0). The source code is publicly hosted on GitHub at https://github.com/thor27/video-cut."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body data-version="0.3.0">
 
@@ -50,6 +155,7 @@
         <ul class="nav-list">
           <li><a href="#features" class="nav-link">Features</a></li>
           <li><a href="#screenshots" class="nav-link">Screenshots</a></li>
+          <li><a href="#faq" class="nav-link">FAQ</a></li>
           <li><a href="#download" class="nav-link">Download</a></li>
           <li><a href="https://github.com/thor27/video-cut/releases" class="nav-link" target="_blank" rel="noopener">Releases</a></li>
         </ul>
@@ -314,6 +420,86 @@
             <p>Instant split action pill at the playhead position for quick cuts.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Frequently Asked Questions (FAQ) -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-subtitle">
+          Everything you need to know about Video Cut, lossless trimming, formats, and installation.
+        </p>
+      </div>
+
+      <div class="faq-list">
+        <details class="faq-item" open>
+          <summary class="faq-question">
+            <span>What makes Video Cut "lossless"?</span>
+            <span class="faq-icon" aria-hidden="true">▾</span>
+          </summary>
+          <div class="faq-answer">
+            <p>
+              When trimming or splitting video segments without re-encoding, Video Cut uses FFmpeg's stream copy mode (<code>-c copy</code>). Video and audio streams are extracted directly at keyframes without decoding and re-compressing frames. This means <strong>zero loss of image quality</strong>, original bitrate retention, and export speeds that are practically instantaneous.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>How does Video Cut integrate with GNOME and Linux desktops?</span>
+            <span class="faq-icon" aria-hidden="true">▾</span>
+          </summary>
+          <div class="faq-answer">
+            <p>
+              Video Cut is built using native Python, GTK4, and Libadwaita. It follows GNOME Human Interface Guidelines (HIG) with full support for light and dark system color schemes, desktop accent colors, Wayland displays, fractional scaling, and native desktop drag-and-drop / clipboard operations.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>What video and audio formats are supported?</span>
+            <span class="faq-icon" aria-hidden="true">▾</span>
+          </summary>
+          <div class="faq-answer">
+            <p>
+              Video Cut supports any video or audio format supported by FFmpeg, including <strong>MP4, MKV, WebM, MOV, AVI, TS</strong>, and audio formats like <strong>MP3, AAC, FLAC, OGG, and WAV</strong>. You can also mix still photos (PNG, JPEG, WebP) into your timeline projects.
+            </p>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>How do I install Video Cut on my Linux distribution?</span>
+            <span class="faq-icon" aria-hidden="true">▾</span>
+          </summary>
+          <div class="faq-answer">
+            <p>
+              Video Cut provides multiple packaging formats for maximum convenience:
+            </p>
+            <ul>
+              <li><strong>AppImage:</strong> Universal executable that runs on any modern Linux distribution without installation.</li>
+              <li><strong>Snap:</strong> Available in the Canonical Snap Store (<code>sudo snap install video-cut</code>).</li>
+              <li><strong>Flatpak:</strong> Standalone Flatpak bundle available on our GitHub Releases.</li>
+              <li><strong>Source:</strong> Directly clone and run with Poetry / pip.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="faq-item">
+          <summary class="faq-question">
+            <span>Is Video Cut free and open source?</span>
+            <span class="faq-icon" aria-hidden="true">▾</span>
+          </summary>
+          <div class="faq-answer">
+            <p>
+              Yes! Video Cut is 100% free and open source software licensed under the <strong>GNU General Public License v3.0 (GPL-3.0)</strong>. Source code, discussions, and issue tracking are hosted openly on <a href="https://github.com/thor27/video-cut" target="_blank" rel="noopener">GitHub</a>.
+            </p>
+          </div>
+        </details>
       </div>
     </div>
   </section>

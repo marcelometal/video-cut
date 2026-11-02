@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://thor27.github.io/video-cut/</loc>
+    <lastmod>2026-11-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/video-cut-banner.jpg</image:loc>
+      <image:title>Video Cut — Fast &amp; Simple Video Editing for Linux</image:title>
+      <image:caption>Video Cut header banner</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_hero_dark.png</image:loc>
+      <image:title>Video Cut Main Interface (Dark Mode)</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_hero_light.png</image:loc>
+      <image:title>Video Cut Main Interface (Light Mode)</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_crop_rotate_dark.png</image:loc>
+      <image:title>Video Cut Aspect Ratio Presets and Crop Tool</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_image_import_dark.png</image:loc>
+      <image:title>Video Cut Mixed Media Photo and Audio Import</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_export_advanced.png</image:loc>
+      <image:title>Video Cut Advanced Export Codecs and Containers</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://thor27.github.io/video-cut/assets/screenshot_split_action.png</image:loc>
+      <image:title>Video Cut Precision Timeline Splitting</image:title>
+    </image:image>
+  </url>
+</urlset>
