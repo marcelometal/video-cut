@@ -4,10 +4,13 @@
 
 # Video Cut 🎬
 
+[![Website](https://img.shields.io/badge/Website-thor27.github.io%2Fvideo--cut-blue)](https://thor27.github.io/video-cut)
 [![Latest Release](https://img.shields.io/github/v/release/thor27/video-cut?label=Latest%20Version&color=orange)](https://github.com/thor27/video-cut/releases/latest)
 [![Releases](https://img.shields.io/badge/Downloads-GitHub%20Releases-blue)](https://github.com/thor27/video-cut/releases)
 
 An easy-to-use, fast, and lightweight video editor to cut and merge videos, add images with soundtracks, crop, and rotate clips on an intuitive timeline. Inspired by macOS QuickTime and Preview.
+
+🌐 **Website:** [https://thor27.github.io/video-cut](https://thor27.github.io/video-cut)
 
 <p align="center">
   <img src="screenshot.png" alt="Video Cut Screenshot" width="850">
@@ -15,7 +18,7 @@ An easy-to-use, fast, and lightweight video editor to cut and merge videos, add 
 
 ## Download Latest Version
 
-Pre-built packages are available on the **[Releases Page](https://github.com/thor27/video-cut/releases/latest)**:
+Visit the **[Official Website](https://thor27.github.io/video-cut)** or download pre-built packages directly from the **[Releases Page](https://github.com/thor27/video-cut/releases/latest)**:
 
 - 📦 **[Flatpak Bundle (`VideoCut-0.3.0.flatpak`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone Flatpak bundle (or via Flathub).
 - 📦 **[AppImage (`VideoCut-0.3.0-x86_64.AppImage`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone portable package (runs on any modern Linux distribution without installation).
