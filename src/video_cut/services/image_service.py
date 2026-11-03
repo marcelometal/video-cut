@@ -11,6 +11,25 @@ from pathlib import Path
 from gi.repository import GLib
 
 from ..utils import SUBPROCESS_FLAGS, get_ffmpeg_path
+from .ffmpeg_service import (
+    FLAG_AUDIO_BITRATE,
+    FLAG_AUDIO_CHANNELS,
+    FLAG_AUDIO_FILTER,
+    FLAG_CODEC_AUDIO,
+    FLAG_CODEC_VIDEO,
+    FLAG_DURATION,
+    FLAG_FILTER_VIDEO,
+    FLAG_FORMAT,
+    FLAG_FRAMERATE,
+    FLAG_FRAMES_VIDEO,
+    FLAG_INPUT,
+    FLAG_LOOP,
+    FLAG_OVERWRITE,
+    FLAG_PIX_FMT,
+    FLAG_SEEK,
+    FLAG_SHORTEST,
+    FFmpegService,
+)
 from .probe_service import ProbeService, VideoMetadata
 
 SUPPORTED_IMAGE_EXTENSIONS: set[str] = {
@@ -89,64 +108,64 @@ class ImageService:
         if aud_path is not None:
             cmd = [
                 ffmpeg_bin,
-                "-y",
-                "-loop",
+                FLAG_OVERWRITE,
+                FLAG_LOOP,
                 "1",
-                "-framerate",
+                FLAG_FRAMERATE,
                 "30",
-                "-t",
+                FLAG_DURATION,
                 f"{duration:.3f}",
-                "-i",
+                FLAG_INPUT,
                 str(img_path),
-                "-ss",
+                FLAG_SEEK,
                 f"{audio_start_time:.3f}",
-                "-t",
+                FLAG_DURATION,
                 f"{duration:.3f}",
-                "-i",
+                FLAG_INPUT,
                 str(aud_path),
-                "-c:v",
+                FLAG_CODEC_VIDEO,
                 "libx264",
-                "-pix_fmt",
+                FLAG_PIX_FMT,
                 "yuv420p",
-                "-vf",
+                FLAG_FILTER_VIDEO,
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                "-af",
+                FLAG_AUDIO_FILTER,
                 f"aresample=44100,apad=whole_dur={duration:.3f}",
-                "-c:a",
+                FLAG_CODEC_AUDIO,
                 "aac",
-                "-b:a",
+                FLAG_AUDIO_BITRATE,
                 "192k",
-                "-ac",
+                FLAG_AUDIO_CHANNELS,
                 "2",
-                "-shortest",
+                FLAG_SHORTEST,
             ]
         else:
             cmd = [
                 ffmpeg_bin,
-                "-y",
-                "-loop",
+                FLAG_OVERWRITE,
+                FLAG_LOOP,
                 "1",
-                "-framerate",
+                FLAG_FRAMERATE,
                 "30",
-                "-t",
+                FLAG_DURATION,
                 f"{duration:.3f}",
-                "-i",
+                FLAG_INPUT,
                 str(img_path),
-                "-f",
+                FLAG_FORMAT,
                 "lavfi",
-                "-t",
+                FLAG_DURATION,
                 f"{duration:.3f}",
-                "-i",
+                FLAG_INPUT,
                 "anullsrc=channel_layout=stereo:sample_rate=44100",
-                "-c:v",
+                FLAG_CODEC_VIDEO,
                 "libx264",
-                "-pix_fmt",
+                FLAG_PIX_FMT,
                 "yuv420p",
-                "-vf",
+                FLAG_FILTER_VIDEO,
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                "-c:a",
+                FLAG_CODEC_AUDIO,
                 "aac",
-                "-shortest",
+                FLAG_SHORTEST,
             ]
 
         if with_progress:
@@ -351,6 +370,11 @@ class ImageService:
         def worker() -> None:
             nonlocal process
             try:
+                if cancelled:
+                    if on_done:
+                        GLib.idle_add(_notify_done, None, RuntimeError("Conversion cancelled"), None, None)
+                    return
+
                 cmd = cls.build_conversion_command(
                     img_path=img_path,
                     out_path=out_path,
@@ -397,6 +421,13 @@ class ImageService:
 
                 rc = process.wait()
                 if cancelled:
+                    if out_path.exists():
+                        try:
+                            out_path.unlink()
+                        except OSError:
+                            pass
+                    if on_done:
+                        GLib.idle_add(_notify_done, None, RuntimeError("Conversion cancelled"), None, None)
                     return
 
                 if rc == 0:

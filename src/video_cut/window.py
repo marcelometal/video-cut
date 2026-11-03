@@ -1,4 +1,3 @@
-import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -17,6 +16,7 @@ from .crop_rotate_dialog import CropRotateDialog
 from .i18n import _
 from .image_import_dialog import ImageImportDialog
 from .models import ExportSettings, ProjectTimeline, Segment
+from .paths import APP_ID, load_application_css, register_resource_icons
 from .player import VideoPlayerController
 from .progress_modal import ProgressModal
 from .services.export_service import ExportService
@@ -62,34 +62,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.clipboard_controller.internal_segment = value
 
     def _build_ui(self) -> None:
-        # Load CSS and icons
-        css_provider = Gtk.CssProvider()
-        css_path = Path(__file__).parent / "style.css"
-        if not css_path.exists():
-            snap_dir = os.environ.get("SNAP")
-            for candidate in [
-                Path(snap_dir) / "usr" / "share" / "video-cut" / "style.css" if snap_dir else None,
-                Path(snap_dir) / "share" / "video-cut" / "style.css" if snap_dir else None,
-                Path("/usr/share/video-cut/style.css"),
-            ]:
-                if candidate and candidate.exists():
-                    css_path = candidate
-                    break
-
-        if css_path and css_path.exists():
-            css_provider.load_from_path(str(css_path))
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                css_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-            )
-
-        res_dir = Path(__file__).parent / "resources"
-        if res_dir.exists():
-            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-            icon_theme.add_search_path(str(res_dir))
-        Gtk.Window.set_default_icon_name("io.github.thor27.video-cut")
-        self.set_icon_name("io.github.thor27.video-cut")
+        # Load CSS styling and resource icons
+        load_application_css()
+        register_resource_icons()
+        self.set_icon_name(APP_ID)
 
         # ToolbarView layout
         self.toolbar_view = Adw.ToolbarView()

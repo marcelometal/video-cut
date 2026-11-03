@@ -13,6 +13,23 @@ from gi.repository import GLib
 
 from ..i18n import _
 from ..models import ExportSettings, Segment
+from .ffmpeg_service import (
+    FLAG_AUDIO_BITRATE,
+    FLAG_CODEC_AUDIO,
+    FLAG_CODEC_VIDEO,
+    FLAG_CRF,
+    FLAG_FILTER_COMPLEX,
+    FLAG_INPUT,
+    FLAG_MAP,
+    FLAG_OVERWRITE,
+    FLAG_PIX_FMT,
+    FLAG_PRESET,
+    FLAG_PROGRESS,
+    FLAG_SEEK,
+    FLAG_VIDEO_BITRATE,
+    FLAG_VIDEO_TAG,
+    FFmpegService,
+)
 from .probe_service import ProbeService
 
 
@@ -25,40 +42,16 @@ class FFmpegCapabilities:
     @classmethod
     def get_encoders(cls) -> set[str]:
         if cls._encoders is None:
-            try:
-                res = subprocess.run(
-                    ["ffmpeg", "-encoders"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                    text=True,
-                )
-                encoders = set()
-                for line in res.stdout.splitlines():
-                    parts = line.strip().split()
-                    if len(parts) >= 2 and len(parts[0]) >= 6:
-                        encoders.add(parts[1])
-                cls._encoders = encoders
-            except Exception:
+            cls._encoders = FFmpegService.query_available_encoders()
+            if not cls._encoders:
                 cls._encoders = {"libx264", "aac"}
         return cls._encoders
 
     @classmethod
     def get_muxers(cls) -> set[str]:
         if cls._muxers is None:
-            try:
-                res = subprocess.run(
-                    ["ffmpeg", "-muxers"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL,
-                    text=True,
-                )
-                muxers = set()
-                for line in res.stdout.splitlines():
-                    parts = line.strip().split()
-                    if len(parts) >= 2 and "E" in parts[0]:
-                        muxers.add(parts[1])
-                cls._muxers = muxers
-            except Exception:
+            cls._muxers = FFmpegService.query_available_muxers()
+            if not cls._muxers:
                 cls._muxers = {"mp4", "matroska", "webm", "mov"}
         return cls._muxers
 
@@ -180,12 +173,12 @@ class ExportService:
         target_height = target_height - (target_height % 2)
 
         # 3. Assemble command inputs
-        cmd = ["ffmpeg", "-y"]
+        cmd = ["ffmpeg", FLAG_OVERWRITE]
         for p in unique_paths:
             min_s = path_to_min_start[p]
             if min_s > 0.0:
-                cmd.extend(["-ss", f"{min_s:.3f}"])
-            cmd.extend(["-i", str(p)])
+                cmd.extend([FLAG_SEEK, f"{min_s:.3f}"])
+            cmd.extend([FLAG_INPUT, str(p)])
 
         # 4. Assemble filter_complex
         filter_parts: list[str] = []
@@ -260,11 +253,11 @@ class ExportService:
         filter_graph = ";".join(filter_parts)
 
         cmd.extend([
-            "-filter_complex",
+            FLAG_FILTER_COMPLEX,
             filter_graph,
-            "-map",
+            FLAG_MAP,
             "[outv]",
-            "-map",
+            FLAG_MAP,
             "[outa]",
         ])
 
@@ -276,31 +269,31 @@ class ExportService:
         a_bitrate = settings.audio_bitrate if settings else "192k"
 
         if v_codec == "prores_ks":
-            cmd.extend(["-c:v", "prores_ks", "-profile:v", "3", "-vendor", "apl0", "-pix_fmt", "yuv422p10le"])
+            cmd.extend([FLAG_CODEC_VIDEO, "prores_ks", "-profile:v", "3", "-vendor", "apl0", FLAG_PIX_FMT, "yuv422p10le"])
         elif v_codec == "libvpx-vp9":
             vp9_cpu = {"ultrafast": "8", "veryfast": "5", "fast": "3", "medium": "2", "slow": "1"}.get(preset_val, "5")
-            cmd.extend(["-c:v", "libvpx-vp9", "-crf", crf_val, "-b:v", "0", "-pix_fmt", "yuv420p", "-cpu-used", vp9_cpu, "-row-mt", "1"])
+            cmd.extend([FLAG_CODEC_VIDEO, "libvpx-vp9", FLAG_CRF, crf_val, FLAG_VIDEO_BITRATE, "0", FLAG_PIX_FMT, "yuv420p", "-cpu-used", vp9_cpu, "-row-mt", "1"])
         elif v_codec == "libsvtav1":
             svt_preset = {"ultrafast": "11", "veryfast": "10", "fast": "8", "medium": "6", "slow": "4"}.get(preset_val, "10")
-            cmd.extend(["-c:v", "libsvtav1", "-crf", crf_val, "-preset", svt_preset, "-pix_fmt", "yuv420p"])
+            cmd.extend([FLAG_CODEC_VIDEO, "libsvtav1", FLAG_CRF, crf_val, FLAG_PRESET, svt_preset, FLAG_PIX_FMT, "yuv420p"])
         elif v_codec == "libaom-av1":
             aom_cpu = {"ultrafast": "8", "veryfast": "6", "fast": "4", "medium": "2", "slow": "1"}.get(preset_val, "6")
-            cmd.extend(["-c:v", "libaom-av1", "-crf", crf_val, "-b:v", "0", "-cpu-used", aom_cpu, "-pix_fmt", "yuv420p"])
+            cmd.extend([FLAG_CODEC_VIDEO, "libaom-av1", FLAG_CRF, crf_val, FLAG_VIDEO_BITRATE, "0", "-cpu-used", aom_cpu, FLAG_PIX_FMT, "yuv420p"])
         elif v_codec == "libx265":
-            cmd.extend(["-c:v", "libx265", "-preset", preset_val, "-crf", crf_val, "-tag:v", "hvc1"])
+            cmd.extend([FLAG_CODEC_VIDEO, "libx265", FLAG_PRESET, preset_val, FLAG_CRF, crf_val, FLAG_VIDEO_TAG, "hvc1"])
         else:
-            cmd.extend(["-c:v", "libx264", "-preset", preset_val, "-crf", crf_val, "-pix_fmt", "yuv420p"])
+            cmd.extend([FLAG_CODEC_VIDEO, "libx264", FLAG_PRESET, preset_val, FLAG_CRF, crf_val, FLAG_PIX_FMT, "yuv420p"])
 
         # Audio encoding settings
         if a_codec == "flac":
-            cmd.extend(["-c:a", "flac"])
+            cmd.extend([FLAG_CODEC_AUDIO, "flac"])
         elif a_codec == "copy":
-            cmd.extend(["-c:a", "copy"])
+            cmd.extend([FLAG_CODEC_AUDIO, "copy"])
         else:
-            cmd.extend(["-c:a", a_codec, "-b:a", a_bitrate])
+            cmd.extend([FLAG_CODEC_AUDIO, a_codec, FLAG_AUDIO_BITRATE, a_bitrate])
 
         cmd.extend([
-            "-progress",
+            FLAG_PROGRESS,
             "pipe:1",
             str(out_path),
         ])

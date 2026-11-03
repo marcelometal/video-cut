@@ -16,6 +16,21 @@ gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
 from ..utils import SUBPROCESS_FLAGS, get_ffmpeg_path
+from .ffmpeg_service import (
+    FLAG_FILTER_VIDEO,
+    FLAG_FRAMES_VIDEO,
+    FLAG_INPUT,
+    FLAG_MAP,
+    FLAG_NO_AUDIO,
+    FLAG_NO_DATA,
+    FLAG_NO_STDIN,
+    FLAG_NO_SUBTITLES,
+    FLAG_OVERWRITE,
+    FLAG_QUALITY_VIDEO,
+    FLAG_SEEK,
+    FLAG_SKIP_FRAME,
+    FFmpegService,
+)
 
 
 class ThumbnailService:
@@ -135,20 +150,20 @@ class ThumbnailService:
         if not out_p.exists():
             cmd = [
                 get_ffmpeg_path(),
-                "-y",
-                "-nostdin",
-                "-ss",
+                FLAG_OVERWRITE,
+                FLAG_NO_STDIN,
+                FLAG_SEEK,
                 f"{t:.3f}",
-                "-i",
+                FLAG_INPUT,
                 str(path),
-                "-an",
-                "-sn",
-                "-dn",
-                "-frames:v",
+                FLAG_NO_AUDIO,
+                FLAG_NO_SUBTITLES,
+                FLAG_NO_DATA,
+                FLAG_FRAMES_VIDEO,
                 "1",
-                "-vf",
+                FLAG_FILTER_VIDEO,
                 "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-                "-q:v",
+                FLAG_QUALITY_VIDEO,
                 "2",
                 str(out_p),
             ]
@@ -416,16 +431,16 @@ class ThumbnailService:
             to_extract = [item for item in batch_items if not item[2].exists()]
             if to_extract:
                 ffmpeg_bin = get_ffmpeg_path()
-                cmd = [ffmpeg_bin, "-y", "-nostdin"]
+                cmd = [ffmpeg_bin, FLAG_OVERWRITE, FLAG_NO_STDIN]
                 for _idx, t, _out_p in to_extract:
-                    cmd.extend(["-skip_frame", "bidir", "-ss", f"{t:.3f}", "-i", str(path)])
+                    cmd.extend([FLAG_SKIP_FRAME, "bidir", FLAG_SEEK, f"{t:.3f}", FLAG_INPUT, str(path)])
                 for local_i, (_idx, _t, out_p) in enumerate(to_extract):
                     cmd.extend([
-                        "-map", f"{local_i}:v:0",
-                        "-frames:v", "1",
-                        "-an", "-sn", "-dn",
-                        "-vf", vf,
-                        "-q:v", "2",
+                        FLAG_MAP, f"{local_i}:v:0",
+                        FLAG_FRAMES_VIDEO, "1",
+                        FLAG_NO_AUDIO, FLAG_NO_SUBTITLES, FLAG_NO_DATA,
+                        FLAG_FILTER_VIDEO, vf,
+                        FLAG_QUALITY_VIDEO, "2",
                         str(out_p),
                     ])
                 res = subprocess.run(
@@ -439,13 +454,13 @@ class ThumbnailService:
                     for _idx, t, out_p in to_extract:
                         if not out_p.exists():
                             fb_cmd = [
-                                ffmpeg_bin, "-y", "-nostdin",
-                                "-ss", f"{t:.3f}",
-                                "-i", str(path),
-                                "-an", "-sn", "-dn",
-                                "-frames:v", "1",
-                                "-vf", vf,
-                                "-q:v", "2",
+                                ffmpeg_bin, FLAG_OVERWRITE, FLAG_NO_STDIN,
+                                FLAG_SEEK, f"{t:.3f}",
+                                FLAG_INPUT, str(path),
+                                FLAG_NO_AUDIO, FLAG_NO_SUBTITLES, FLAG_NO_DATA,
+                                FLAG_FRAMES_VIDEO, "1",
+                                FLAG_FILTER_VIDEO, vf,
+                                FLAG_QUALITY_VIDEO, "2",
                                 str(out_p),
                             ]
                             try:

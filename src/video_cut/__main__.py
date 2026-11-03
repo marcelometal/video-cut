@@ -1,24 +1,50 @@
 """CLI entrypoint for Video Cut."""
 
+import argparse
 import sys
+from pathlib import Path
 
 from gi.repository import GLib
 
+from . import __version__
 from .app import VideoCutApplication
+from .paths import APP_ID, APP_NAME
 
 
-def main() -> int:
-    GLib.set_prgname("io.github.thor27.video-cut")
-    GLib.set_application_name("Video Cut")
+def parse_args(args: list[str] | None = None) -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        prog="video-cut",
+        description="Fast, simple video and image editor for Linux.",
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
+    parser.add_argument(
+        "files",
+        nargs="*",
+        type=Path,
+        help="One or more video or image files to open in the timeline.",
+    )
+    return parser.parse_args(args)
 
-    initial_video = None
-    args = sys.argv[1:]
-    if args and not args[0].startswith("-"):
-        initial_video = args[0]
 
-    app = VideoCutApplication(initial_video=initial_video)
-    return app.run([sys.argv[0]])
+def main(argv: list[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv
+
+    GLib.set_prgname(APP_ID)
+    GLib.set_application_name(APP_NAME)
+
+    parsed = parse_args(argv[1:])
+
+    app = VideoCutApplication(initial_files=parsed.files)
+    return app.run([argv[0]])
 
 
 if __name__ == "__main__":
     sys.exit(main())
+
