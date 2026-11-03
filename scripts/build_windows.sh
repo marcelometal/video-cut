@@ -42,7 +42,15 @@ fi
 
 # 3. Environment Preparation & PyInstaller Execution
 if [[ "$OS_TYPE" =~ linux ]]; then
-    echo "==> Linux detected: Building Windows standalone package using Wine and MSYS2 UCRT64 runtime..."
+    # Add Wine staging or system paths if not in PATH
+    if ! command -v wine &>/dev/null; then
+        for wine_dir in /opt/wine-staging/bin /opt/wine-devel/bin /usr/lib/wine; do
+            if [ -x "${wine_dir}/wine" ]; then
+                export PATH="${wine_dir}:${PATH}"
+                break
+            fi
+        done
+    fi
 
     # Check required tools
     for tool in wine curl tar zstd python3; do

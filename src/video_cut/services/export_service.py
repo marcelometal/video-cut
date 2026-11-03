@@ -13,6 +13,7 @@ from gi.repository import GLib
 
 from ..i18n import _
 from ..models import ExportSettings, Segment
+from ..utils import SUBPROCESS_FLAGS
 from .ffmpeg_service import (
     FLAG_AUDIO_BITRATE,
     FLAG_CODEC_AUDIO,

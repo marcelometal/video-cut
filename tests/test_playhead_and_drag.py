@@ -527,6 +527,7 @@ def test_split_pill_centralization_across_languages():
                     ctx.iteration(False)
 
                 tw = win.timeline_widget
+                tw.recalculate_layout(force=True)
                 card = list(tw._cards.values())[0]
                 card.set_needle_ratio(0.5)
                 tw.show_split_pill()

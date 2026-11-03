@@ -14,6 +14,13 @@ from urllib.request import Request, urlopen
 REPO_URL = "https://repo.msys2.org/mingw/ucrt64"
 DB_NAME = "ucrt64.db"
 
+# Ensure Wine is discoverable if installed in standard alternative locations
+if not shutil.which("wine"):
+    for wine_candidate in ["/opt/wine-staging/bin", "/opt/wine-devel/bin", "/usr/lib/wine"]:
+        if (Path(wine_candidate) / "wine").is_file():
+            os.environ["PATH"] = f"{wine_candidate}:{os.environ.get('PATH', '')}"
+            break
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 CACHE_DIR = ROOT_DIR / "build" / "msys2_cache"
 PKG_CACHE_DIR = CACHE_DIR / "pkgs"
