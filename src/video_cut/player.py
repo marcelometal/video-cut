@@ -15,7 +15,9 @@ gi.require_version("Adw", "1")
 gi.require_version("GdkPixbuf", "2.0")
 from gi.repository import Gdk, GdkPixbuf, GLib, GObject, Graphene, Gsk, Gtk
 
-from .models import ProjectTimeline, Segment
+from .models import OverlayItem, ProjectTimeline, Segment
+from .services.overlay_audio_player import OverlayAudioPlayer
+from .services.overlay_service import OverlayRenderService
 from .utils import clamp
 
 # Playback debug logging, enabled with VIDEO_CUT_DEBUG=1
@@ -55,6 +57,8 @@ class TransformedPaintable(GObject.Object, Gdk.Paintable):
         hflip: bool = False,
         vflip: bool = False,
         crop: tuple[float, float, float, float] | None = None,
+        overlays: list[OverlayItem] | None = None,
+        get_current_time: Callable[[], float] | None = None,
     ) -> None:
         super().__init__()
         self.base = base
@@ -62,6 +66,8 @@ class TransformedPaintable(GObject.Object, Gdk.Paintable):
         self.hflip = hflip
         self.vflip = vflip
         self.crop = crop or (0.0, 0.0, 1.0, 1.0)
+        self.overlays: list[OverlayItem] = list(overlays) if overlays else []
+        self.get_current_time = get_current_time
 
         self._signal_handlers: list[int] = []
         try:
@@ -90,12 +96,18 @@ class TransformedPaintable(GObject.Object, Gdk.Paintable):
         hflip: bool = False,
         vflip: bool = False,
         crop: tuple[float, float, float, float] | None = None,
+        overlays: list[OverlayItem] | None = None,
+        get_current_time: Callable[[], float] | None = None,
     ) -> None:
         """Update transformation parameters and trigger size & content recalculation."""
         self.rotation = rotation % 360
         self.hflip = hflip
         self.vflip = vflip
         self.crop = crop or (0.0, 0.0, 1.0, 1.0)
+        if overlays is not None:
+            self.overlays = list(overlays)
+        if get_current_time is not None:
+            self.get_current_time = get_current_time
         self.invalidate_size()
         self.invalidate_contents()
 
@@ -183,6 +195,19 @@ class TransformedPaintable(GObject.Object, Gdk.Paintable):
         finally:
             snapshot.pop()
 
+        if self.overlays:
+            curr_t = self.get_current_time() if self.get_current_time else 0.0
+            tex = OverlayRenderService.render_overlays_to_texture(
+                self.overlays,
+                int(round(width)),
+                int(round(height)),
+                current_time=curr_t,
+                include_audio=False,
+            )
+            if tex is not None:
+                overlay_rect = Graphene.Rect().init(0, 0, float(width), float(height))
+                snapshot.append_texture(tex, overlay_rect)
+
 
 class VideoPlayerController:
     """Manages video playback and synchronization across multi-segment timeline without hover controls."""
@@ -213,6 +238,7 @@ class VideoPlayerController:
         self._last_seek_time: float = 0.0
         self._play_on_seek_done: bool = False
         self._media_file_handlers: list[int] = []
+        self._overlay_audio_player: OverlayAudioPlayer = OverlayAudioPlayer()
 
     @property
     def is_playing(self) -> bool:
@@ -245,6 +271,8 @@ class VideoPlayerController:
             self.current_transformed_paintable.detach()
             self.current_transformed_paintable = None
         self._cleanup_media_file()
+        if hasattr(self, "_overlay_audio_player") and self._overlay_audio_player:
+            self._overlay_audio_player.cleanup()
         if self.video_picture and self.video_picture.get_paintable() is not None:
             self.video_picture.set_paintable(None)
 
@@ -255,8 +283,18 @@ class VideoPlayerController:
         else:
             self.clear()
 
+    def _get_segment_rel_time(self) -> float:
+        """Return playback time relative to current segment start."""
+        if self.timeline.is_empty:
+            return 0.0
+        try:
+            _, seg, source_ts = self.timeline.map_global_time(self.current_global_time)
+            return max(0.0, source_ts - seg.start_time)
+        except Exception:
+            return 0.0
+
     def _apply_segment_transform(self, seg: Segment | None = None, force: bool = False) -> None:
-        """Attach or update TransformedPaintable if segment has transforms, else use raw media file."""
+        """Attach or update TransformedPaintable if segment has transforms or overlays, else use raw media file."""
         if self.current_media_file is None:
             if self.current_transformed_paintable:
                 self.current_transformed_paintable.detach()
@@ -271,7 +309,14 @@ class VideoPlayerController:
             except ValueError:
                 seg = None
 
-        if seg is not None and seg.has_transform:
+        if seg is not None and (seg.has_transform or seg.has_overlays):
+            if seg.has_overlays:
+                for it in seg.overlays:
+                    if it.media_path and (
+                        it.item_type == "video"
+                        or Path(it.media_path).suffix.lower() in (".mp4", ".webm", ".mov", ".mkv", ".avi")
+                    ):
+                        OverlayRenderService.get_video_clip(it.media_path)
             if (
                 self.current_transformed_paintable is not None
                 and self.current_transformed_paintable.base == self.current_media_file
@@ -283,12 +328,15 @@ class VideoPlayerController:
                     or tp.hflip != seg.hflip
                     or tp.vflip != seg.vflip
                     or tp.crop != seg.crop
+                    or tp.overlays != seg.overlays
                 ):
                     tp.update_transform(
                         rotation=seg.rotation,
                         hflip=seg.hflip,
                         vflip=seg.vflip,
                         crop=seg.crop,
+                        overlays=seg.overlays,
+                        get_current_time=self._get_segment_rel_time,
                     )
                 if self.video_picture.get_paintable() != tp:
                     self.video_picture.set_paintable(tp)
@@ -301,6 +349,8 @@ class VideoPlayerController:
                     hflip=seg.hflip,
                     vflip=seg.vflip,
                     crop=seg.crop,
+                    overlays=seg.overlays,
+                    get_current_time=self._get_segment_rel_time,
                 )
                 self.video_picture.set_paintable(self.current_transformed_paintable)
         else:
@@ -347,6 +397,15 @@ class VideoPlayerController:
         else:
             self._apply_segment_transform(seg)
             self._seek_media_file(source_ts, force=True)
+
+        if hasattr(self, "_overlay_audio_player") and self._overlay_audio_player:
+            rel_t = max(0.0, source_ts - seg.start_time)
+            self._overlay_audio_player.update_playback(
+                items=seg.overlays,
+                rel_time=rel_t,
+                is_playing=self._is_playing,
+                master_seeking=True,
+            )
 
         self.on_time_update(self.current_global_time)
 
@@ -479,6 +538,9 @@ class VideoPlayerController:
         if self.current_media_file:
             self.current_media_file.pause()
 
+        if hasattr(self, "_overlay_audio_player") and self._overlay_audio_player:
+            self._overlay_audio_player.pause_all()
+
         self.on_playback_state_changed(False)
 
     def toggle_playback(self) -> None:
@@ -601,6 +663,17 @@ class VideoPlayerController:
                     if abs(cur_stream_ts - source_ts) > 0.4:
                         _dbg(f"DRIFT stream={cur_stream_ts:.3f} expected={source_ts:.3f} -> reseek")
                         self._seek_media_file(source_ts)
+
+            if hasattr(self, "_overlay_audio_player") and self._overlay_audio_player:
+                rel_t = max(0.0, source_ts - seg.start_time)
+                self._overlay_audio_player.update_playback(
+                    items=seg.overlays,
+                    rel_time=rel_t,
+                    is_playing=True,
+                )
+
+            if self.current_transformed_paintable and self.current_transformed_paintable.overlays:
+                self.current_transformed_paintable.invalidate_contents()
 
             self.on_time_update(self.current_global_time)
         except ValueError:

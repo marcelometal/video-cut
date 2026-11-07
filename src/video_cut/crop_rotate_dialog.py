@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import io
-import subprocess
-import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -21,7 +19,8 @@ from gi.repository import Adw, Gdk, GdkPixbuf, GLib, Gtk
 
 from .i18n import _
 from .models import Segment
-from .utils import SUBPROCESS_FLAGS, clamp, get_ffmpeg_path
+from .services.ffmpeg_service import FFmpegService
+from .utils import clamp
 
 # Aspect ratio preset dictionary: label -> ratio (width / height) or None
 ASPECT_PRESETS = [
@@ -327,48 +326,16 @@ class CropRotateDialog(Adw.Window):
             except Exception:
                 pass
 
-        # Fallback FFmpeg extraction at full size
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-            tmp_path = Path(tmp.name)
-
-        try:
-            vf = "scale=trunc(iw/2)*2:trunc(ih/2)*2"
-            cmd = [
-                get_ffmpeg_path(),
-                "-y",
-                "-nostdin",
-                "-ss",
-                f"{target_t:.3f}",
-                "-i",
-                str(path),
-                "-an",
-                "-sn",
-                "-dn",
-                "-frames:v",
-                "1",
-                "-vf",
-                vf,
-                "-q:v",
-                "2",
-                str(tmp_path),
-            ]
-            subprocess.run(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=True,
-                creationflags=SUBPROCESS_FLAGS,
-            )
-            if tmp_path.exists() and tmp_path.stat().st_size > 0:
-                return _load_pixbuf_fit_max(tmp_path)
-        except Exception:
-            pass
-        finally:
-            if tmp_path.exists():
-                try:
-                    tmp_path.unlink()
-                except OSError:
-                    pass
+        # Fallback FFmpeg extraction via FFmpegService
+        raw_bytes = FFmpegService.extract_frame_to_bytes(path, target_t, image_format="jpeg")
+        if raw_bytes:
+            try:
+                loader = GdkPixbuf.PixbufLoader.new()
+                loader.write(raw_bytes)
+                loader.close()
+                return loader.get_pixbuf()
+            except Exception:
+                pass
 
         return None
 
@@ -425,8 +392,30 @@ class CropRotateDialog(Adw.Window):
     def _build_ui(self) -> None:
         toolbar_view = Adw.ToolbarView()
         self.set_content(toolbar_view)
+        toolbar_view.add_top_bar(self._build_header_bar())
 
-        # Header bar
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        main_box.set_margin_start(16)
+        main_box.set_margin_end(16)
+        main_box.set_margin_top(12)
+        main_box.set_margin_bottom(16)
+        toolbar_view.set_content(main_box)
+
+        main_box.append(self._build_preview_area())
+
+        controls_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        controls_box.append(self._build_transform_toolbar())
+        controls_box.append(self._build_aspect_ratio_presets_bar())
+
+        self.lbl_readout = Gtk.Label()
+        self.lbl_readout.add_css_class("dim-label")
+        self.lbl_readout.set_halign(Gtk.Align.CENTER)
+        controls_box.append(self.lbl_readout)
+
+        main_box.append(controls_box)
+
+    def _build_header_bar(self) -> Adw.HeaderBar:
+        """Create header bar with Cancel and Apply action buttons."""
         header = Adw.HeaderBar()
         header.set_show_end_title_buttons(False)
         header.set_show_start_title_buttons(False)
@@ -439,18 +428,10 @@ class CropRotateDialog(Adw.Window):
         self.btn_apply.add_css_class("suggested-action")
         self.btn_apply.connect("clicked", self._on_apply_clicked)
         header.pack_end(self.btn_apply)
+        return header
 
-        toolbar_view.add_top_bar(header)
-
-        # Main vertical container
-        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
-        main_box.set_margin_start(16)
-        main_box.set_margin_end(16)
-        main_box.set_margin_top(12)
-        main_box.set_margin_bottom(16)
-        toolbar_view.set_content(main_box)
-
-        # Interactive Picture preview inside overlay with loading spinner
+    def _build_preview_area(self) -> Gtk.Overlay:
+        """Create the interactive Cairo preview widget and loading overlay."""
         self.preview_overlay = Gtk.Overlay()
         self.preview_overlay.set_vexpand(True)
         self.preview_overlay.set_hexpand(True)
@@ -461,7 +442,6 @@ class CropRotateDialog(Adw.Window):
         self.preview_picture.set_can_shrink(True)
         self.preview_picture.set_content_fit(Gtk.ContentFit.FILL)
 
-        # Gestures on preview picture
         self._setup_preview_gestures()
         self.preview_overlay.set_child(self.preview_picture)
 
@@ -472,17 +452,13 @@ class CropRotateDialog(Adw.Window):
         self.loading_spinner.set_visible(False)
         self.preview_overlay.add_overlay(self.loading_spinner)
 
-        main_box.append(self.preview_overlay)
+        return self.preview_overlay
 
-        # Controls container
-        controls_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        main_box.append(controls_box)
+    def _build_transform_toolbar(self) -> Gtk.Box:
+        """Create the rotation and flipping button toolbar with reset."""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row.set_halign(Gtk.Align.CENTER)
 
-        # Toolbar Row 1: Rotation & Flip buttons + Reset
-        row1 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
-        row1.set_halign(Gtk.Align.CENTER)
-
-        # Transform group (linked)
         tf_group = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         tf_group.add_css_class("linked")
 
@@ -506,23 +482,23 @@ class CropRotateDialog(Adw.Window):
         btn_flip_v.connect("clicked", lambda _: self._toggle_vflip())
         tf_group.append(btn_flip_v)
 
-        row1.append(tf_group)
+        row.append(tf_group)
 
-        # Reset button
         btn_reset = Gtk.Button(label=_("Reset"))
         btn_reset.set_tooltip_text(_("Reset crop, rotation, and flip"))
         btn_reset.connect("clicked", lambda _: self._reset_transforms())
-        row1.append(btn_reset)
+        row.append(btn_reset)
 
-        controls_box.append(row1)
+        return row
 
-        # Toolbar Row 2: Aspect Ratio Presets
-        row2 = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        row2.set_halign(Gtk.Align.CENTER)
+    def _build_aspect_ratio_presets_bar(self) -> Gtk.Box:
+        """Create aspect ratio presets toggle button strip."""
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.set_halign(Gtk.Align.CENTER)
 
         lbl_aspect = Gtk.Label(label=_("Aspect Ratio:"))
         lbl_aspect.add_css_class("dim-label")
-        row2.append(lbl_aspect)
+        row.append(lbl_aspect)
 
         presets_group = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         presets_group.add_css_class("linked")
@@ -538,14 +514,8 @@ class CropRotateDialog(Adw.Window):
             presets_group.append(btn)
             self._preset_buttons[label] = btn
 
-        row2.append(presets_group)
-        controls_box.append(row2)
-
-        # Readout badge
-        self.lbl_readout = Gtk.Label()
-        self.lbl_readout.add_css_class("dim-label")
-        self.lbl_readout.set_halign(Gtk.Align.CENTER)
-        controls_box.append(self.lbl_readout)
+        row.append(presets_group)
+        return row
 
     def _update_readout_label(self) -> None:
         """Update resolution and crop readout text."""
@@ -652,7 +622,35 @@ class CropRotateDialog(Adw.Window):
         bw = cw * dest_w
         bh = ch * dest_h
 
-        # 5. Draw darkened shroud outside crop rectangle
+        # 5. Draw overlay elements
+        self._draw_shroud(cr, dest_x, dest_y, dest_w, dest_h, bx, by, bw, bh)
+        self._draw_grid_lines(cr, bx, by, bw, bh)
+        self._draw_crop_borders(cr, bx, by, bw, bh)
+        self._draw_crop_handles(cr, bx, by, bw, bh)
+
+        # 6. Ultra-fast direct texture upload using Gdk.MemoryTexture (no PNG compression/decompression)
+        try:
+            surf.flush()
+            stride = surf.get_stride()
+            glib_bytes = GLib.Bytes.new(surf.get_data().tobytes())
+            texture = Gdk.MemoryTexture.new(w, h, Gdk.MemoryFormat.B8G8R8A8_PREMULTIPLIED, glib_bytes, stride)
+            self.preview_picture.set_paintable(texture)
+        except Exception:
+            pass
+
+    def _draw_shroud(
+        self,
+        cr: cairo.Context,
+        dest_x: int,
+        dest_y: int,
+        dest_w: int,
+        dest_h: int,
+        bx: float,
+        by: float,
+        bw: float,
+        bh: float,
+    ) -> None:
+        """Draw darkened shroud outside crop rectangle."""
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.6)
         if by > dest_y:
             cr.rectangle(dest_x, dest_y, dest_w, by - dest_y)
@@ -667,7 +665,8 @@ class CropRotateDialog(Adw.Window):
             cr.rectangle(bx + bw, by, (dest_x + dest_w) - (bx + bw), bh)
             cr.fill()
 
-        # 6. Rule of thirds grid lines
+    def _draw_grid_lines(self, cr: cairo.Context, bx: float, by: float, bw: float, bh: float) -> None:
+        """Draw dashed rule-of-thirds composition guidelines."""
         cr.save()
         cr.set_source_rgba(1.0, 1.0, 1.0, 0.35)
         cr.set_line_width(1.0)
@@ -683,7 +682,8 @@ class CropRotateDialog(Adw.Window):
         cr.stroke()
         cr.restore()
 
-        # 7. Main crop box border
+    def _draw_crop_borders(self, cr: cairo.Context, bx: float, by: float, bw: float, bh: float) -> None:
+        """Draw outer and inner boundary strokes for crop rectangle."""
         cr.set_source_rgba(0.0, 0.0, 0.0, 0.5)
         cr.set_line_width(3.0)
         cr.rectangle(bx, by, bw, bh)
@@ -694,7 +694,8 @@ class CropRotateDialog(Adw.Window):
         cr.rectangle(bx, by, bw, bh)
         cr.stroke()
 
-        # 8. Handles: 4 corner brackets and 4 edge midpoint bars
+    def _draw_crop_handles(self, cr: cairo.Context, bx: float, by: float, bw: float, bh: float) -> None:
+        """Draw corner brackets and edge midpoint handles."""
         cr.set_source_rgba(1.0, 1.0, 1.0, 1.0)
         cr.set_line_width(3.0)
         handle_len = 16.0
@@ -732,16 +733,6 @@ class CropRotateDialog(Adw.Window):
         cr.move_to(bx + bw, by + bh / 2.0 - mid_bar)
         cr.line_to(bx + bw, by + bh / 2.0 + mid_bar)
         cr.stroke()
-
-        # 9. Ultra-fast direct texture upload using Gdk.MemoryTexture (no PNG compression/decompression)
-        try:
-            surf.flush()
-            stride = surf.get_stride()
-            glib_bytes = GLib.Bytes.new(surf.get_data().tobytes())
-            texture = Gdk.MemoryTexture.new(w, h, Gdk.MemoryFormat.B8G8R8A8_PREMULTIPLIED, glib_bytes, stride)
-            self.preview_picture.set_paintable(texture)
-        except Exception:
-            pass
 
     def _setup_preview_gestures(self) -> None:
         # 1. Motion controller for cursor updates
@@ -836,7 +827,7 @@ class CropRotateDialog(Adw.Window):
         self._crop_at_drag_start = self.crop
 
     def _on_drag_update(self, gesture: Gtk.GestureDrag, offset_x: float, offset_y: float) -> None:
-        if self._drag_mode == "NONE" or self._drag_mode == "OUTSIDE":
+        if self._drag_mode in ("NONE", "OUTSIDE"):
             return
 
         dest_x, dest_y, dest_w, dest_h = self._img_rect
@@ -854,125 +845,155 @@ class CropRotateDialog(Adw.Window):
             ny = clamp(init_y + ndy, 0.0, 1.0 - init_h)
             self.crop = (nx, ny, init_w, init_h)
         else:
-            # Resizing
             target_ratio = self._get_current_aspect_ratio()
             dir_code = self._drag_mode.replace("RESIZE_", "")
 
             if target_ratio is None or not self._transformed_pixbuf:
-                # Freeform resizing: single-axis for edges, dual-axis for corners
-                nx, ny, nw, nh = init_x, init_y, init_w, init_h
-                if "W" in dir_code:
-                    max_w = init_x + init_w
-                    nw = clamp(init_w - ndx, min_dim, max_w)
-                    nx = init_x + (init_w - nw)
-                elif "E" in dir_code:
-                    nw = clamp(init_w + ndx, min_dim, 1.0 - init_x)
-
-                if "N" in dir_code:
-                    max_h = init_y + init_h
-                    nh = clamp(init_h - ndy, min_dim, max_h)
-                    ny = init_y + (init_h - nh)
-                elif "S" in dir_code:
-                    nh = clamp(init_h + ndy, min_dim, 1.0 - init_y)
-
-                # Bound checks
-                nx = clamp(nx, 0.0, 1.0 - nw)
-                ny = clamp(ny, 0.0, 1.0 - nh)
-                nw = clamp(nw, min_dim, 1.0 - nx)
-                nh = clamp(nh, min_dim, 1.0 - ny)
+                self.crop = self._compute_freeform_resize(
+                    init_x, init_y, init_w, init_h, ndx, ndy, dir_code, min_dim
+                )
             else:
-                # Constrained aspect ratio resizing: maintain strict proportion at all times
-                # If either dimension reaches boundary, growth stops in BOTH dimensions.
                 img_pixel_ratio = self._transformed_pixbuf.get_width() / float(self._transformed_pixbuf.get_height())
                 norm_ratio = target_ratio / img_pixel_ratio
+                self.crop = self._compute_constrained_resize(
+                    init_x, init_y, init_w, init_h, ndx, ndy, dir_code, norm_ratio, min_dim
+                )
 
-                min_w = max(min_dim, min_dim * norm_ratio)
-                min_h = min_w / norm_ratio
+        self._update_readout_label()
+        self._render_preview()
 
-                if dir_code == "E":
-                    center_y = init_y + init_h / 2.0
-                    max_h_avail = min(1.0, 2.0 * center_y, 2.0 * (1.0 - center_y))
-                    max_w_avail = 1.0 - init_x
-                    max_w = min(max_w_avail, max_h_avail * norm_ratio)
-                    nw = clamp(init_w + ndx, min_w, max(min_w, max_w))
-                    nh = nw / norm_ratio
-                    nx = init_x
-                    ny = center_y - nh / 2.0
-                elif dir_code == "W":
-                    anchor_x = init_x + init_w
-                    center_y = init_y + init_h / 2.0
-                    max_h_avail = min(1.0, 2.0 * center_y, 2.0 * (1.0 - center_y))
-                    max_w_avail = anchor_x
-                    max_w = min(max_w_avail, max_h_avail * norm_ratio)
-                    nw = clamp(init_w - ndx, min_w, max(min_w, max_w))
-                    nh = nw / norm_ratio
-                    nx = anchor_x - nw
-                    ny = center_y - nh / 2.0
-                elif dir_code == "S":
-                    center_x = init_x + init_w / 2.0
-                    max_w_avail = min(1.0, 2.0 * center_x, 2.0 * (1.0 - center_x))
-                    max_h_avail = 1.0 - init_y
-                    max_h = min(max_h_avail, max_w_avail / norm_ratio)
-                    nh = clamp(init_h + ndy, min_h, max(min_h, max_h))
-                    nw = nh * norm_ratio
-                    ny = init_y
-                    nx = center_x - nw / 2.0
-                elif dir_code == "N":
-                    anchor_y = init_y + init_h
-                    center_x = init_x + init_w / 2.0
-                    max_w_avail = min(1.0, 2.0 * center_x, 2.0 * (1.0 - center_x))
-                    max_h_avail = anchor_y
-                    max_h = min(max_h_avail, max_w_avail / norm_ratio)
-                    nh = clamp(init_h - ndy, min_h, max(min_h, max_h))
-                    nw = nh * norm_ratio
-                    ny = anchor_y - nh
-                    nx = center_x - nw / 2.0
-                else:
-                    # Corner resizing: NW, NE, SW, SE
-                    if dir_code == "SE":
-                        max_w_avail = 1.0 - init_x
-                        max_h_avail = 1.0 - init_y
-                        dw_x = ndx
-                        dw_y = ndy * norm_ratio
-                    elif dir_code == "SW":
-                        max_w_avail = init_x + init_w
-                        max_h_avail = 1.0 - init_y
-                        dw_x = -ndx
-                        dw_y = ndy * norm_ratio
-                    elif dir_code == "NE":
-                        max_w_avail = 1.0 - init_x
-                        max_h_avail = init_y + init_h
-                        dw_x = ndx
-                        dw_y = -ndy * norm_ratio
-                    else:  # NW
-                        max_w_avail = init_x + init_w
-                        max_h_avail = init_y + init_h
-                        dw_x = -ndx
-                        dw_y = -ndy * norm_ratio
+    def _compute_freeform_resize(
+        self,
+        init_x: float,
+        init_y: float,
+        init_w: float,
+        init_h: float,
+        ndx: float,
+        ndy: float,
+        dir_code: str,
+        min_dim: float,
+    ) -> tuple[float, float, float, float]:
+        """Freeform unconstrained crop resizing along dragged edges or corners."""
+        nx, ny, nw, nh = init_x, init_y, init_w, init_h
+        if "W" in dir_code:
+            max_w = init_x + init_w
+            nw = clamp(init_w - ndx, min_dim, max_w)
+            nx = init_x + (init_w - nw)
+        elif "E" in dir_code:
+            nw = clamp(init_w + ndx, min_dim, 1.0 - init_x)
 
-                    max_w = min(max_w_avail, max_h_avail * norm_ratio)
-                    delta_w = dw_x if abs(dw_x) >= abs(dw_y) else dw_y
-                    nw = clamp(init_w + delta_w, min_w, max(min_w, max_w))
-                    nh = nw / norm_ratio
+        if "N" in dir_code:
+            max_h = init_y + init_h
+            nh = clamp(init_h - ndy, min_dim, max_h)
+            ny = init_y + (init_h - nh)
+        elif "S" in dir_code:
+            nh = clamp(init_h + ndy, min_dim, 1.0 - init_y)
 
-                    if dir_code == "SE":
-                        nx = init_x
-                        ny = init_y
-                    elif dir_code == "SW":
-                        nx = (init_x + init_w) - nw
-                        ny = init_y
-                    elif dir_code == "NE":
-                        nx = init_x
-                        ny = (init_y + init_h) - nh
-                    else:  # NW
-                        nx = (init_x + init_w) - nw
-                        ny = (init_y + init_h) - nh
+        nx = clamp(nx, 0.0, 1.0 - nw)
+        ny = clamp(ny, 0.0, 1.0 - nh)
+        nw = clamp(nw, min_dim, 1.0 - nx)
+        nh = clamp(nh, min_dim, 1.0 - ny)
+        return (nx, ny, nw, nh)
 
-                # Floating-point precision safety clamp
-                nx = clamp(nx, 0.0, 1.0 - nw)
-                ny = clamp(ny, 0.0, 1.0 - nh)
+    def _compute_constrained_resize(
+        self,
+        init_x: float,
+        init_y: float,
+        init_w: float,
+        init_h: float,
+        ndx: float,
+        ndy: float,
+        dir_code: str,
+        norm_ratio: float,
+        min_dim: float,
+    ) -> tuple[float, float, float, float]:
+        """Aspect-ratio-constrained resizing maintaining fixed ratio proportions."""
+        min_w = max(min_dim, min_dim * norm_ratio)
+        min_h = min_w / norm_ratio
 
-            self.crop = (nx, ny, nw, nh)
+        if dir_code == "E":
+            center_y = init_y + init_h / 2.0
+            max_h_avail = min(1.0, 2.0 * center_y, 2.0 * (1.0 - center_y))
+            max_w_avail = 1.0 - init_x
+            max_w = min(max_w_avail, max_h_avail * norm_ratio)
+            nw = clamp(init_w + ndx, min_w, max(min_w, max_w))
+            nh = nw / norm_ratio
+            nx = init_x
+            ny = center_y - nh / 2.0
+        elif dir_code == "W":
+            anchor_x = init_x + init_w
+            center_y = init_y + init_h / 2.0
+            max_h_avail = min(1.0, 2.0 * center_y, 2.0 * (1.0 - center_y))
+            max_w_avail = anchor_x
+            max_w = min(max_w_avail, max_h_avail * norm_ratio)
+            nw = clamp(init_w - ndx, min_w, max(min_w, max_w))
+            nh = nw / norm_ratio
+            nx = anchor_x - nw
+            ny = center_y - nh / 2.0
+        elif dir_code == "S":
+            center_x = init_x + init_w / 2.0
+            max_w_avail = min(1.0, 2.0 * center_x, 2.0 * (1.0 - center_x))
+            max_h_avail = 1.0 - init_y
+            max_h = min(max_h_avail, max_w_avail / norm_ratio)
+            nh = clamp(init_h + ndy, min_h, max(min_h, max_h))
+            nw = nh * norm_ratio
+            ny = init_y
+            nx = center_x - nw / 2.0
+        elif dir_code == "N":
+            anchor_y = init_y + init_h
+            center_x = init_x + init_w / 2.0
+            max_w_avail = min(1.0, 2.0 * center_x, 2.0 * (1.0 - center_x))
+            max_h_avail = anchor_y
+            max_h = min(max_h_avail, max_w_avail / norm_ratio)
+            nh = clamp(init_h - ndy, min_h, max(min_h, max_h))
+            nw = nh * norm_ratio
+            ny = anchor_y - nh
+            nx = center_x - nw / 2.0
+        else:
+            # Corner resizing: NW, NE, SW, SE
+            if dir_code == "SE":
+                max_w_avail = 1.0 - init_x
+                max_h_avail = 1.0 - init_y
+                dw_x = ndx
+                dw_y = ndy * norm_ratio
+            elif dir_code == "SW":
+                max_w_avail = init_x + init_w
+                max_h_avail = 1.0 - init_y
+                dw_x = -ndx
+                dw_y = ndy * norm_ratio
+            elif dir_code == "NE":
+                max_w_avail = 1.0 - init_x
+                max_h_avail = init_y + init_h
+                dw_x = ndx
+                dw_y = -ndy * norm_ratio
+            else:  # NW
+                max_w_avail = init_x + init_w
+                max_h_avail = init_y + init_h
+                dw_x = -ndx
+                dw_y = -ndy * norm_ratio
+
+            max_w = min(max_w_avail, max_h_avail * norm_ratio)
+            delta_w = dw_x if abs(dw_x) >= abs(dw_y) else dw_y
+            nw = clamp(init_w + delta_w, min_w, max(min_w, max_w))
+            nh = nw / norm_ratio
+
+            if dir_code == "SE":
+                nx = init_x
+                ny = init_y
+            elif dir_code == "SW":
+                nx = (init_x + init_w) - nw
+                ny = init_y
+            elif dir_code == "NE":
+                nx = init_x
+                ny = (init_y + init_h) - nh
+            else:  # NW
+                nx = (init_x + init_w) - nw
+                ny = (init_y + init_h) - nh
+
+        # Floating-point precision safety clamp
+        nx = clamp(nx, 0.0, 1.0 - nw)
+        ny = clamp(ny, 0.0, 1.0 - nh)
+        return (nx, ny, nw, nh)
 
         self._update_readout_label()
         self._render_preview()

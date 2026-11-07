@@ -124,6 +124,8 @@ class TimelineWidget(Gtk.Box):
         on_delete_selection_requested: Callable[[], None] | None = None,
         on_crop_rotate_requested: Callable[[str], None] | None = None,
         on_crop_rotate_selection_requested: Callable[[], None] | None = None,
+        on_overlay_requested: Callable[[str], None] | None = None,
+        on_overlay_selection_requested: Callable[[], None] | None = None,
     ) -> None:
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         self.timeline = timeline
@@ -141,6 +143,8 @@ class TimelineWidget(Gtk.Box):
         self.on_delete_selection_requested = on_delete_selection_requested
         self.on_crop_rotate_requested = on_crop_rotate_requested
         self.on_crop_rotate_selection_requested = on_crop_rotate_selection_requested
+        self.on_overlay_requested = on_overlay_requested
+        self.on_overlay_selection_requested = on_overlay_selection_requested
         self.on_add_video_requested = on_add_video_requested
         self.on_selection_changed = on_selection_changed
         self.on_play_pause = on_play_pause
@@ -233,6 +237,14 @@ class TimelineWidget(Gtk.Box):
         if self.on_crop_rotate_selection_requested:
             self.btn_crop_rotate.connect("clicked", lambda _: self.on_crop_rotate_selection_requested())
         clipboard_box.append(self.btn_crop_rotate)
+
+        self.btn_overlay = Gtk.Button.new_from_icon_name("insert-image-symbolic")
+        self.btn_overlay.set_tooltip_text(_("Overlays & Drawings (O)"))
+        self.btn_overlay.set_focusable(False)
+        self.btn_overlay.set_sensitive(False)
+        if self.on_overlay_selection_requested:
+            self.btn_overlay.connect("clicked", lambda _: self.on_overlay_selection_requested())
+        clipboard_box.append(self.btn_overlay)
 
         self.btn_delete = Gtk.Button.new_from_icon_name("user-trash-symbolic")
         self.btn_delete.set_tooltip_text(_("Delete clip (Delete)"))
@@ -520,6 +532,7 @@ class TimelineWidget(Gtk.Box):
                 on_cut=self._on_card_cut,
                 on_paste=self._on_card_paste,
                 on_crop_rotate=self._on_card_crop_rotate,
+                on_overlay=self._on_card_overlay,
                 on_drop_reorder=self._on_card_drop_reorder,
                 can_delete=can_delete,
                 can_paste=self._can_paste,
@@ -869,6 +882,10 @@ class TimelineWidget(Gtk.Box):
     def _on_card_crop_rotate(self, segment_id: str) -> None:
         if self.on_crop_rotate_requested:
             self.on_crop_rotate_requested(segment_id)
+
+    def _on_card_overlay(self, segment_id: str) -> None:
+        if self.on_overlay_requested:
+            self.on_overlay_requested(segment_id)
 
     def _on_card_drop_reorder(self, dragged_id: str, target_id: str) -> None:
         from_idx = self.timeline.get_segment_index(dragged_id)

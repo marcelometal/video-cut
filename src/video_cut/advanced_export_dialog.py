@@ -50,20 +50,7 @@ class AdvancedExportDialog(Adw.Window):
         toolbar_view = Adw.ToolbarView()
         self.set_content(toolbar_view)
 
-        header_bar = Adw.HeaderBar()
-        header_bar.set_show_title(True)
-        header_bar.set_show_end_title_buttons(False)
-        header_bar.set_show_start_title_buttons(False)
-
-        btn_cancel = Gtk.Button(label=_("Cancel"))
-        btn_cancel.connect("clicked", lambda _: self.close())
-        header_bar.pack_start(btn_cancel)
-
-        btn_export = Gtk.Button(label=_("Export…"))
-        btn_export.add_css_class("suggested-action")
-        btn_export.connect("clicked", lambda _: self._on_export_clicked())
-        header_bar.pack_end(btn_export)
-
+        header_bar = self._create_header_bar()
         toolbar_view.add_top_bar(header_bar)
 
         scrolled = Gtk.ScrolledWindow()
@@ -82,18 +69,47 @@ class AdvancedExportDialog(Adw.Window):
         box.set_margin_bottom(12)
         clamp.set_child(box)
 
-        # 1. Video Group (Container format and video properties)
-        grp_video = Adw.PreferencesGroup(title=_("Video"))
-        box.append(grp_video)
+        box.append(self._create_video_group())
+        box.append(self._create_audio_group())
 
+    def _create_header_bar(self) -> Adw.HeaderBar:
+        """Build the top header bar with Cancel and Export action buttons."""
+        header_bar = Adw.HeaderBar()
+        header_bar.set_show_title(True)
+        header_bar.set_show_end_title_buttons(False)
+        header_bar.set_show_start_title_buttons(False)
+
+        btn_cancel = Gtk.Button(label=_("Cancel"))
+        btn_cancel.connect("clicked", lambda _: self.close())
+        header_bar.pack_start(btn_cancel)
+
+        btn_export = Gtk.Button(label=_("Export…"))
+        btn_export.add_css_class("suggested-action")
+        btn_export.connect("clicked", lambda _: self._on_export_clicked())
+        header_bar.pack_end(btn_export)
+
+        return header_bar
+
+    def _create_video_group(self) -> Adw.PreferencesGroup:
+        """Build the Video preference group with container, resolution, fps, codec, quality, and preset."""
+        grp_video = Adw.PreferencesGroup(title=_("Video"))
+        grp_video.add(self._create_container_row())
+        grp_video.add(self._create_resolution_row())
+        grp_video.add(self._create_fps_row())
+        grp_video.add(self._create_video_codec_row())
+        grp_video.add(self._create_quality_row())
+        grp_video.add(self._create_preset_row())
+        return grp_video
+
+    def _create_container_row(self) -> Adw.ComboRow:
         self.row_container = Adw.ComboRow(title=_("Container Format"))
         container_labels = [c[1] for c in self.containers]
         self.row_container.set_model(Gtk.StringList.new(container_labels))
         self.row_container.set_selected(0)
         self.row_container.connect("notify::selected", lambda *_: self._update_codecs_for_container())
-        grp_video.add(self.row_container)
+        return self.row_container
 
-        # Resolution
+    def _create_resolution_row(self) -> Adw.ComboRow:
         self.row_resolution = Adw.ComboRow(title=_("Resolution"))
         match_res_label = (
             _("Match Source ({w}×{h})").format(w=self.source_width, h=self.source_height)
@@ -110,9 +126,9 @@ class AdvancedExportDialog(Adw.Window):
         ]
         self.row_resolution.set_model(Gtk.StringList.new([r[1] for r in self.resolutions]))
         self.row_resolution.set_selected(0)
-        grp_video.add(self.row_resolution)
+        return self.row_resolution
 
-        # Frame Rate
+    def _create_fps_row(self) -> Adw.ComboRow:
         self.row_fps = Adw.ComboRow(title=_("Frame Rate"))
         match_fps_label = (
             _("Match Source ({fps:.2f} fps)").format(fps=self.source_fps)
@@ -127,14 +143,14 @@ class AdvancedExportDialog(Adw.Window):
         ]
         self.row_fps.set_model(Gtk.StringList.new([f[1] for f in self.fps_options]))
         self.row_fps.set_selected(0)
-        grp_video.add(self.row_fps)
+        return self.row_fps
 
-        # Video Codec
+    def _create_video_codec_row(self) -> Adw.ComboRow:
         self.row_video_codec = Adw.ComboRow(title=_("Video Codec"))
         self.row_video_codec.connect("notify::selected", lambda *_: self._on_video_codec_changed())
-        grp_video.add(self.row_video_codec)
+        return self.row_video_codec
 
-        # Quality (CRF)
+    def _create_quality_row(self) -> Adw.ComboRow:
         self.row_quality = Adw.ComboRow(title=_("Quality"))
         self.quality_options = [
             (21, _("Balanced (CRF 21)")),
@@ -143,9 +159,9 @@ class AdvancedExportDialog(Adw.Window):
         ]
         self.row_quality.set_model(Gtk.StringList.new([q[1] for q in self.quality_options]))
         self.row_quality.set_selected(0)
-        grp_video.add(self.row_quality)
+        return self.row_quality
 
-        # Encoding Speed / Preset
+    def _create_preset_row(self) -> Adw.ComboRow:
         self.row_preset = Adw.ComboRow(title=_("Encoding Speed"))
         self.preset_options = [
             ("veryfast", _("Very Fast (Default)")),
@@ -156,18 +172,21 @@ class AdvancedExportDialog(Adw.Window):
         ]
         self.row_preset.set_model(Gtk.StringList.new([p[1] for p in self.preset_options]))
         self.row_preset.set_selected(0)
-        grp_video.add(self.row_preset)
+        return self.row_preset
 
-        # 2. Audio Group
+    def _create_audio_group(self) -> Adw.PreferencesGroup:
+        """Build the Audio preference group with codec and bitrate rows."""
         grp_audio = Adw.PreferencesGroup(title=_("Audio"))
-        box.append(grp_audio)
+        grp_audio.add(self._create_audio_codec_row())
+        grp_audio.add(self._create_audio_bitrate_row())
+        return grp_audio
 
-        # Audio Codec
+    def _create_audio_codec_row(self) -> Adw.ComboRow:
         self.row_audio_codec = Adw.ComboRow(title=_("Audio Codec"))
         self.row_audio_codec.connect("notify::selected", lambda *_: self._on_audio_codec_changed())
-        grp_audio.add(self.row_audio_codec)
+        return self.row_audio_codec
 
-        # Audio Bitrate
+    def _create_audio_bitrate_row(self) -> Adw.ComboRow:
         self.row_audio_bitrate = Adw.ComboRow(title=_("Audio Bitrate"))
         self.bitrate_options = [
             ("192k", _("192 kbps (Default)")),
@@ -177,7 +196,7 @@ class AdvancedExportDialog(Adw.Window):
         ]
         self.row_audio_bitrate.set_model(Gtk.StringList.new([b[1] for b in self.bitrate_options]))
         self.row_audio_bitrate.set_selected(0)
-        grp_audio.add(self.row_audio_bitrate)
+        return self.row_audio_bitrate
 
     def _get_current_container_key(self) -> str:
         idx = self.row_container.get_selected()

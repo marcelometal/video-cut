@@ -71,8 +71,8 @@ cp "${REPO_ROOT}/src/video_cut/resources/io.github.thor27.video-cut.svg" "${APPD
 chmod 644 "${APPDIR}/usr/share/pixmaps/"*
 
 mkdir -p "${APPDIR}/usr/share/icons/hicolor/scalable/actions"
-cp "${REPO_ROOT}/src/video_cut/resources/hicolor/scalable/actions/video-split-symbolic.svg" \
-   "${APPDIR}/usr/share/icons/hicolor/scalable/actions/video-split-symbolic.svg"
+cp "${REPO_ROOT}/src/video_cut/resources/hicolor/scalable/actions/"*.svg \
+   "${APPDIR}/usr/share/icons/hicolor/scalable/actions/"
 chmod 644 "${APPDIR}/usr/share/icons/hicolor/scalable/actions/"*
 
 cp "${REPO_ROOT}/src/video_cut/resources/io.github.thor27.video-cut.svg" \

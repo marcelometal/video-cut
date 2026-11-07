@@ -38,6 +38,7 @@ class SegmentCard(Gtk.Box):
         on_cut: Callable[[str], None] | None = None,
         on_paste: Callable[[str], None] | None = None,
         on_crop_rotate: Callable[[str], None] | None = None,
+        on_overlay: Callable[[str], None] | None = None,
         on_drop_reorder: Callable[[str, str], None] = lambda _a, _b: None,
         can_delete: bool = True,
         can_paste: bool = False,
@@ -70,6 +71,7 @@ class SegmentCard(Gtk.Box):
         self.on_cut = on_cut
         self.on_paste = on_paste
         self.on_crop_rotate = on_crop_rotate
+        self.on_overlay = on_overlay
         self.on_drop_reorder = on_drop_reorder
         self._popover_close_timer: int | None = None
         self._is_drag_scrubbing: bool = False
@@ -83,9 +85,15 @@ class SegmentCard(Gtk.Box):
         self.set_hexpand(False)
 
         # Left click gesture across entire card ensuring it becomes selected whenever clicked
+        # Double click opens overlay editor
         card_click = Gtk.GestureClick.new()
         card_click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
-        card_click.connect("pressed", lambda _g, _n, _x, _y: self.on_select(self.segment.id))
+        def _on_card_pressed(_g, n_press: int, _x: float, _y: float) -> None:
+            self.on_select(self.segment.id)
+            if n_press == 2 and self.on_overlay:
+                self.on_overlay(self.segment.id)
+
+        card_click.connect("pressed", _on_card_pressed)
         self.add_controller(card_click)
 
         # Right click gesture for context menu
@@ -134,6 +142,15 @@ class SegmentCard(Gtk.Box):
         self.dur_label.add_css_class("segment-duration-badge")
         self.dur_label.set_valign(Gtk.Align.CENTER)
         self.header.append(self.dur_label)
+
+        # Overlay indicator icon badge
+        self.overlay_badge = Gtk.Image.new_from_icon_name("insert-image-symbolic")
+        self.overlay_badge.set_pixel_size(12)
+        self.overlay_badge.set_tooltip_text(_("This clip has overlays & drawings"))
+        self.overlay_badge.add_css_class("dim-label")
+        self.overlay_badge.set_valign(Gtk.Align.CENTER)
+        self.overlay_badge.set_visible(self.segment.has_overlays)
+        self.header.append(self.overlay_badge)
 
         # Spacer
         self.header_spacer = Gtk.Box()
@@ -286,6 +303,9 @@ class SegmentCard(Gtk.Box):
         self.menu_crop_rotate = make_menu_item("crop-symbolic", _("Crop & Rotate..."), "C", self._menu_action_crop_rotate)
         box.append(self.menu_crop_rotate)
 
+        self.menu_overlay = make_menu_item("insert-image-symbolic", _("Overlays & Drawings..."), "O", self._menu_action_overlay)
+        box.append(self.menu_overlay)
+
         sep1 = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
         box.append(sep1)
 
@@ -328,6 +348,10 @@ class SegmentCard(Gtk.Box):
         if self.on_crop_rotate:
             self.on_crop_rotate(self.segment.id)
 
+    def _menu_action_overlay(self) -> None:
+        if self.on_overlay:
+            self.on_overlay(self.segment.id)
+
     def _menu_action_move_left(self) -> None:
         if self.can_move_left and self.on_move_left:
             self.on_move_left(self.segment.id)
@@ -345,6 +369,8 @@ class SegmentCard(Gtk.Box):
         self.menu_cut.set_sensitive(self.can_delete)
         self.menu_copy.set_sensitive(True)
         self.menu_paste.set_sensitive(self.can_paste)
+        self.menu_crop_rotate.set_sensitive(True)
+        self.menu_overlay.set_sensitive(True)
         self.menu_move_left.set_sensitive(self.can_move_left)
         self.menu_move_right.set_sensitive(self.can_move_right)
         self.menu_delete.set_sensitive(self.can_delete)
@@ -702,6 +728,9 @@ class SegmentCard(Gtk.Box):
         if hasattr(self, "split_popover"):
             self.split_popover.popdown()
         self.on_select(self.segment.id)
+        if n_press == 2 and self.on_overlay:
+            self.on_overlay(self.segment.id)
+            return
         if self.on_scrub_start:
             self.on_scrub_start(self, x, y)
         elif self.on_scrub_to_source_time:

@@ -1,4 +1,3 @@
-import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -17,6 +16,8 @@ from .crop_rotate_dialog import CropRotateDialog
 from .i18n import _
 from .image_import_dialog import ImageImportDialog
 from .models import ExportSettings, ProjectTimeline, Segment
+from .overlay_dialog import OverlayDialog
+from .paths import APP_ID, load_application_css, register_resource_icons
 from .player import VideoPlayerController
 from .progress_modal import ProgressModal
 from .services.export_service import ExportService
@@ -62,34 +63,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.clipboard_controller.internal_segment = value
 
     def _build_ui(self) -> None:
-        # Load CSS and icons
-        css_provider = Gtk.CssProvider()
-        css_path = Path(__file__).parent / "style.css"
-        if not css_path.exists():
-            snap_dir = os.environ.get("SNAP")
-            for candidate in [
-                Path(snap_dir) / "usr" / "share" / "video-cut" / "style.css" if snap_dir else None,
-                Path(snap_dir) / "share" / "video-cut" / "style.css" if snap_dir else None,
-                Path("/usr/share/video-cut/style.css"),
-            ]:
-                if candidate and candidate.exists():
-                    css_path = candidate
-                    break
-
-        if css_path and css_path.exists():
-            css_provider.load_from_path(str(css_path))
-            Gtk.StyleContext.add_provider_for_display(
-                Gdk.Display.get_default(),
-                css_provider,
-                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
-            )
-
-        res_dir = Path(__file__).parent / "resources"
-        if res_dir.exists():
-            icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
-            icon_theme.add_search_path(str(res_dir))
-        Gtk.Window.set_default_icon_name("io.github.thor27.video-cut")
-        self.set_icon_name("io.github.thor27.video-cut")
+        # Load CSS styling and resource icons
+        load_application_css()
+        register_resource_icons()
+        self.set_icon_name(APP_ID)
 
         # ToolbarView layout
         self.toolbar_view = Adw.ToolbarView()
@@ -262,6 +239,8 @@ class MainWindow(Adw.ApplicationWindow):
             on_delete_selection_requested=self.delete_selected_segment,
             on_crop_rotate_requested=self.open_crop_rotate_dialog,
             on_crop_rotate_selection_requested=self.open_crop_rotate_selected_segment,
+            on_overlay_requested=self.open_overlay_dialog,
+            on_overlay_selection_requested=self.open_overlay_selected_segment,
         )
         self.btn_undo = self.timeline_widget.btn_undo
         self.btn_redo = self.timeline_widget.btn_redo
@@ -269,6 +248,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.btn_copy = self.timeline_widget.btn_copy
         self.btn_paste = self.timeline_widget.btn_paste
         self.btn_crop_rotate = self.timeline_widget.btn_crop_rotate
+        self.btn_overlay = self.timeline_widget.btn_overlay
         self.btn_delete = self.timeline_widget.btn_delete
         main_box.append(self.timeline_widget)
 
@@ -407,6 +387,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.open_crop_rotate_selected_segment()
             return True
 
+        # Overlays & Drawings: O
+        if keyval in (Gdk.KEY_o, Gdk.KEY_O) and not ctrl and not alt:
+            self.open_overlay_selected_segment()
+            return True
+
         # Delete: Delete or BackSpace
         if keyval in (Gdk.KEY_Delete, Gdk.KEY_BackSpace):
             self.delete_selected_segment()
@@ -533,6 +518,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.btn_copy.set_sensitive(can_copy)
         self.btn_paste.set_sensitive(can_paste)
         self.btn_crop_rotate.set_sensitive(has_selection)
+        self.btn_overlay.set_sensitive(has_selection)
         self.btn_delete.set_sensitive(can_delete)
         self.timeline_widget.set_can_paste(can_paste)
 
@@ -1092,6 +1078,42 @@ class MainWindow(Adw.ApplicationWindow):
         )
         dialog.present()
 
+    def open_overlay_selected_segment(self) -> None:
+        """Open Overlays & Drawings modal dialog for the selected segment."""
+        if not self.timeline.selected_segment_id:
+            return
+        self.open_overlay_dialog(self.timeline.selected_segment_id)
+
+    def open_overlay_dialog(self, segment_id: str | None = None) -> None:
+        """Open Overlays & Drawings modal dialog for the given segment ID or selected segment."""
+        target_id = segment_id or self.timeline.selected_segment_id
+        if not target_id:
+            return
+
+        seg = self.timeline.get_segment(target_id)
+        if not seg:
+            return
+
+        if self.player.is_playing:
+            self.player.pause()
+
+        def on_apply(items) -> None:
+            self.timeline.save_state(self.current_global_time)
+            seg.overlays = items
+            self.player.refresh_current_transform()
+            self.timeline_widget.rebuild_filmstrip()
+            self._update_ui_state()
+            self._show_toast(_("Overlays applied to {name}").format(name=seg.source_name))
+
+        dialog = OverlayDialog(
+            parent=self,
+            segment=seg,
+            on_apply=on_apply,
+            current_time=self.current_global_time,
+            thumbnail_service=self.thumbnail_service,
+        )
+        dialog.present()
+
     def _on_timeline_structure_changed(self) -> None:
         self.player.sync_timeline_change(self.current_global_time)
         self._update_ui_state()
@@ -1282,7 +1304,7 @@ class MainWindow(Adw.ApplicationWindow):
             comments=_(
                 "An easy-to-use video editor to cut and merge videos, add images, crop, and rotate"
             ),
-            website="https://github.com/thor27/video-cut",
+            website="https://thor27.github.io/video-cut",
             issue_url="https://github.com/thor27/video-cut/issues",
             support_url="https://github.com/thor27/video-cut/discussions",
             copyright="© 2024–2026 Thomaz Reis",

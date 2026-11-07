@@ -54,8 +54,7 @@ def test_translations_pt_br():
     set_language("pt_BR")
     assert get_current_locale() == "pt_BR"
 
-    assert _("Open") == "Abrir"
-    assert _("Export") == "Exportar"
+    assert _("Open...") == "Abrir..."
     assert _("No Media Loaded") == "Nenhuma mídia carregada"
     assert _("Split at Cursor") == "Dividir no Cursor"
     assert _("Crop & Rotate (C)") == "Cortar e Girar (C)"
@@ -77,17 +76,26 @@ def test_translations_pt_br():
     assert _("Export Video") == "Exportar vídeo"
     assert _("Import") == "Importar"
     assert _("Video will be generated with no audio") == "O vídeo será gerado sem áudio"
-    assert _("Drag header to reorder clip") == "Arraste o cabeçalho para reordenar o clipe"
     assert _("3:4 Vertical Standard") == "3:4 Vertical Padrão"
     assert _("9:21 Vertical Ultrawide") == "9:21 Ultrawide Vertical"
+    assert _("Overlays & Drawings (O)") == "Sobreposições e Desenhos (O)"
+    assert _("Add Text") == "Adicionar Texto"
+    assert _("Add Rectangle") == "Adicionar Retângulo"
+    assert _("Add Circle / Ellipse") == "Adicionar Círculo / Elipse"
+    assert _("Add Emoji") == "Adicionar Emoji"
+    assert _("Properties") == "Propriedades"
+    assert _("No element selected") == "Nenhum elemento selecionado"
+    assert _("Keep proportions") == "Manter proporções"
+    assert _("Allow audio") == "Permitir áudio"
+    assert _("Audio Track") == "Faixa de áudio"
+    assert _("No elements") == "Nenhum elemento"
 
 
 def test_translations_es():
     set_language("es")
     assert get_current_locale() == "es"
 
-    assert _("Open") == "Abrir"
-    assert _("Export") == "Exportar"
+    assert _("Open...") == "Abrir..."
     assert _("No Media Loaded") == "Ningún medio cargado"
     assert _("Split at Cursor") == "Dividir en el Cursor"
     assert _("Crop & Rotate (C)") == "Recortar y Girar (C)"
@@ -112,14 +120,17 @@ def test_translations_es():
     assert _("Drag header to reorder clip") == "Arrastre el encabezado para reordenar el clip"
     assert _("3:4 Vertical Standard") == "3:4 Vertical Estándar"
     assert _("9:21 Vertical Ultrawide") == "9:21 Ultrawide Vertical"
+    assert _("Overlays & Drawings (O)") == "Superposiciones y Dibujos (O)"
+    assert _("Add Text") == "Añadir Texto"
+    assert _("Add Rectangle") == "Añadir Rectángulo"
+    assert _("Properties") == "Propiedades"
 
 
 def test_translations_fr():
     set_language("fr")
     assert get_current_locale() == "fr"
 
-    assert _("Open") == "Ouvrir"
-    assert _("Export") == "Exporter"
+    assert _("Open...") == "Ouvrir..."
     assert _("No Media Loaded") == "Aucun média chargé"
     assert _("Split at Cursor") == "Diviser au Curseur"
     assert _("Crop & Rotate (C)") == "Rogner et Pivoter (C)"
@@ -138,6 +149,11 @@ def test_translations_fr():
     assert _("Export...") == "Exporter..."
     assert _("Export with default options (Ctrl+E)") == "Exporter avec les options par défaut (Ctrl+E)"
     assert _("Export with Default Options") == "Exporter avec les options par défaut"
+    assert _("Overlays & Drawings (O)") == "Superpositions et Dessins (O)"
+    assert _("Add Text") == "Ajouter du texte"
+    assert _("Add Rectangle") == "Ajouter un rectangle"
+    assert _("Properties") == "Propriétés"
+
     assert _("Export Video") == "Exporter la vidéo"
     assert _("Import") == "Importer"
     assert _("Video will be generated with no audio") == "La vidéo sera générée sans audio"
@@ -150,8 +166,7 @@ def test_translations_en_us():
     set_language("en_US")
     assert get_current_locale() == "en_US"
 
-    assert _("Open") == "Open"
-    assert _("Export") == "Export"
+    assert _("Open...") == "Open..."
     assert _("No Media Loaded") == "No Media Loaded"
     assert _("Split at Cursor") == "Split at Cursor"
     assert _("Aspect Ratio:") == "Aspect Ratio:"
@@ -176,7 +191,7 @@ def test_translations_en_us():
 def test_fallback_unsupported_language():
     # If set to an unsupported language, it defaults to en_US and does not crash
     set_language("de_DE")
-    assert _("Open") == "Open"
+    assert _("Open...") == "Open..."
 
     # Untranslated string returns original
     assert _("A brand new unknown string") == "A brand new unknown string"

@@ -20,9 +20,9 @@ An easy-to-use, fast, and lightweight video editor to cut and merge videos, add 
 
 Visit the **[Official Website](https://thor27.github.io/video-cut)** or download pre-built packages directly from the **[Releases Page](https://github.com/thor27/video-cut/releases/latest)**:
 
-- 📦 **[Flatpak Bundle (`VideoCut-0.3.0.flatpak`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone Flatpak bundle (or via Flathub).
-- 📦 **[AppImage (`VideoCut-0.3.0-x86_64.AppImage`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone portable package (runs on any modern Linux distribution without installation).
-- 📦 **[Debian / Ubuntu Package (`video-cut_0.3.0_all.deb`)](https://github.com/thor27/video-cut/releases/latest)** — Install via `sudo apt install ./video-cut_0.3.0_all.deb`.
+- 📦 **[Flatpak Bundle (`VideoCut-0.4.0.flatpak`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone Flatpak bundle (or via Flathub).
+- 📦 **[AppImage (`VideoCut-0.4.0-x86_64.AppImage`)](https://github.com/thor27/video-cut/releases/latest)** — Standalone portable package (runs on any modern Linux distribution without installation).
+- 📦 **[Debian / Ubuntu Package (`video-cut_0.4.0_all.deb`)](https://github.com/thor27/video-cut/releases/latest)** — Install via `sudo apt install ./video-cut_0.4.0_all.deb`.
 - 📦 **[Source Archives (`.tar.gz` / `.zip`)](https://github.com/thor27/video-cut/releases/latest)** — Full source distribution.
 
 All version releases, assets, and changelogs are available on the **[GitHub Versions Page](https://github.com/thor27/video-cut/releases)**.
@@ -31,6 +31,8 @@ All version releases, assets, and changelogs are available on the **[GitHub Vers
 
 - Frame-accurate video cutting, slicing, and trimming
 - Merge multiple videos and images into a single timeline
+- Interactive video overlay editor: add text, vector shapes, PNG/SVG graphics, animated GIFs, PIP video clips, and audio tracks
+- Multi-element selection, movement, alignment, distribution, and universal clipboard (cut, copy, paste, duplicate)
 - Interactive crop with freeform resizing and aspect ratio presets (16:9, 9:16, 1:1, 4:3, 3:4, 21:9, 9:21)
 - Rotate (90° CW/CCW) and flip (horizontal/vertical) clips
 - Import photos and graphics with customizable duration and optional background soundtrack
