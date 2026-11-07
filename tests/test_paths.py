@@ -1,7 +1,5 @@
 """Tests for centralized paths and resource loading."""
 
-from pathlib import Path
-
 from video_cut import paths
 
 

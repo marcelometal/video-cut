@@ -102,6 +102,17 @@ modules:
       - install -Dm644 io.github.thor27.video-cut.metainfo.xml -t /app/share/metainfo/
       - install -Dm644 src/video_cut/resources/io.github.thor27.video-cut.svg /app/share/icons/hicolor/scalable/apps/io.github.thor27.video-cut.svg
       - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/video-split-symbolic.svg /app/share/icons/hicolor/scalable/actions/video-split-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/format-valign-top-symbolic.svg /app/share/icons/hicolor/scalable/actions/format-valign-top-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/format-valign-middle-symbolic.svg /app/share/icons/hicolor/scalable/actions/format-valign-middle-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/format-valign-bottom-symbolic.svg /app/share/icons/hicolor/scalable/actions/format-valign-bottom-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-horizontal-left-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-horizontal-left-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-horizontal-center-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-horizontal-center-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-horizontal-right-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-horizontal-right-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-vertical-top-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-vertical-top-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-vertical-center-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-vertical-center-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-vertical-bottom-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-vertical-bottom-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/distribute-horizontal-symbolic.svg /app/share/icons/hicolor/scalable/actions/distribute-horizontal-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/distribute-vertical-symbolic.svg /app/share/icons/hicolor/scalable/actions/distribute-vertical-symbolic.svg
       - install -Dm644 src/video_cut/resources/icon_16.png /app/share/icons/hicolor/16x16/apps/io.github.thor27.video-cut.png
       - install -Dm644 src/video_cut/resources/icon_24.png /app/share/icons/hicolor/24x24/apps/io.github.thor27.video-cut.png
       - install -Dm644 src/video_cut/resources/icon_32.png /app/share/icons/hicolor/32x32/apps/io.github.thor27.video-cut.png

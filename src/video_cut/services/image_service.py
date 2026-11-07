@@ -21,14 +21,12 @@ from .ffmpeg_service import (
     FLAG_FILTER_VIDEO,
     FLAG_FORMAT,
     FLAG_FRAMERATE,
-    FLAG_FRAMES_VIDEO,
     FLAG_INPUT,
     FLAG_LOOP,
     FLAG_OVERWRITE,
     FLAG_PIX_FMT,
     FLAG_SEEK,
     FLAG_SHORTEST,
-    FFmpegService,
 )
 from .probe_service import ProbeService, VideoMetadata
 

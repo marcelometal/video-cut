@@ -29,7 +29,6 @@ from .ffmpeg_service import (
     FLAG_QUALITY_VIDEO,
     FLAG_SEEK,
     FLAG_SKIP_FRAME,
-    FFmpegService,
 )
 
 

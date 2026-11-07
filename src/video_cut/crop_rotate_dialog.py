@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import io
-import subprocess
-import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -22,7 +20,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, GLib, Gtk
 from .i18n import _
 from .models import Segment
 from .services.ffmpeg_service import FFmpegService
-from .utils import SUBPROCESS_FLAGS, clamp, get_ffmpeg_path
+from .utils import clamp
 
 # Aspect ratio preset dictionary: label -> ratio (width / height) or None
 ASPECT_PRESETS = [

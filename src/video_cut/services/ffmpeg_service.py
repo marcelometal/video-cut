@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
@@ -89,8 +88,7 @@ class FFmpegService:
         try:
             res = subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=True,
                 creationflags=SUBPROCESS_FLAGS,
             )
@@ -129,8 +127,7 @@ class FFmpegService:
         try:
             subprocess.run(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=True,
                 creationflags=SUBPROCESS_FLAGS,
             )
@@ -164,8 +161,7 @@ class FFmpegService:
         ]
         subprocess.run(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=True,
             creationflags=SUBPROCESS_FLAGS,
         )
@@ -230,8 +226,7 @@ class FFmpegService:
         cmd.append(str(output_path))
         subprocess.run(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             check=True,
             creationflags=SUBPROCESS_FLAGS,
         )
@@ -243,8 +238,7 @@ class FFmpegService:
         try:
             res = subprocess.run(
                 [cls.get_binary_path(), FLAG_ENCODERS],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 check=True,
                 creationflags=SUBPROCESS_FLAGS,
@@ -266,8 +260,7 @@ class FFmpegService:
         try:
             res = subprocess.run(
                 [cls.get_binary_path(), FLAG_MUXERS],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 check=True,
                 creationflags=SUBPROCESS_FLAGS,

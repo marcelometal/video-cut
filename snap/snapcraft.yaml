@@ -83,8 +83,9 @@ parts:
         ${CRAFT_PART_INSTALL}/usr/share/applications/io.github.thor27.video-cut.desktop
       install -D -m 644 src/video_cut/resources/io.github.thor27.video-cut.svg \
         ${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/scalable/apps/io.github.thor27.video-cut.svg
-      install -D -m 644 src/video_cut/resources/hicolor/scalable/actions/video-split-symbolic.svg \
-        ${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/scalable/actions/video-split-symbolic.svg
+      for icon in src/video_cut/resources/hicolor/scalable/actions/*.svg; do
+        install -D -m 644 "$icon" "${CRAFT_PART_INSTALL}/usr/share/icons/hicolor/scalable/actions/$(basename "$icon")"
+      done
       install -D -m 644 src/video_cut/resources/icon_512.png \
         ${CRAFT_PART_INSTALL}/usr/share/pixmaps/video-cut.png
       install -D -m 644 src/video_cut/resources/icon_512.png \

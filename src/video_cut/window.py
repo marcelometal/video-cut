@@ -16,6 +16,7 @@ from .crop_rotate_dialog import CropRotateDialog
 from .i18n import _
 from .image_import_dialog import ImageImportDialog
 from .models import ExportSettings, ProjectTimeline, Segment
+from .overlay_dialog import OverlayDialog
 from .paths import APP_ID, load_application_css, register_resource_icons
 from .player import VideoPlayerController
 from .progress_modal import ProgressModal
@@ -238,6 +239,8 @@ class MainWindow(Adw.ApplicationWindow):
             on_delete_selection_requested=self.delete_selected_segment,
             on_crop_rotate_requested=self.open_crop_rotate_dialog,
             on_crop_rotate_selection_requested=self.open_crop_rotate_selected_segment,
+            on_overlay_requested=self.open_overlay_dialog,
+            on_overlay_selection_requested=self.open_overlay_selected_segment,
         )
         self.btn_undo = self.timeline_widget.btn_undo
         self.btn_redo = self.timeline_widget.btn_redo
@@ -245,6 +248,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.btn_copy = self.timeline_widget.btn_copy
         self.btn_paste = self.timeline_widget.btn_paste
         self.btn_crop_rotate = self.timeline_widget.btn_crop_rotate
+        self.btn_overlay = self.timeline_widget.btn_overlay
         self.btn_delete = self.timeline_widget.btn_delete
         main_box.append(self.timeline_widget)
 
@@ -383,6 +387,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.open_crop_rotate_selected_segment()
             return True
 
+        # Overlays & Drawings: O
+        if keyval in (Gdk.KEY_o, Gdk.KEY_O) and not ctrl and not alt:
+            self.open_overlay_selected_segment()
+            return True
+
         # Delete: Delete or BackSpace
         if keyval in (Gdk.KEY_Delete, Gdk.KEY_BackSpace):
             self.delete_selected_segment()
@@ -509,6 +518,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.btn_copy.set_sensitive(can_copy)
         self.btn_paste.set_sensitive(can_paste)
         self.btn_crop_rotate.set_sensitive(has_selection)
+        self.btn_overlay.set_sensitive(has_selection)
         self.btn_delete.set_sensitive(can_delete)
         self.timeline_widget.set_can_paste(can_paste)
 
@@ -1065,6 +1075,42 @@ class MainWindow(Adw.ApplicationWindow):
             current_time=self.current_global_time,
             thumbnail_service=self.thumbnail_service,
             player=self.player if is_cursor_in_segment else None,
+        )
+        dialog.present()
+
+    def open_overlay_selected_segment(self) -> None:
+        """Open Overlays & Drawings modal dialog for the selected segment."""
+        if not self.timeline.selected_segment_id:
+            return
+        self.open_overlay_dialog(self.timeline.selected_segment_id)
+
+    def open_overlay_dialog(self, segment_id: str | None = None) -> None:
+        """Open Overlays & Drawings modal dialog for the given segment ID or selected segment."""
+        target_id = segment_id or self.timeline.selected_segment_id
+        if not target_id:
+            return
+
+        seg = self.timeline.get_segment(target_id)
+        if not seg:
+            return
+
+        if self.player.is_playing:
+            self.player.pause()
+
+        def on_apply(items) -> None:
+            self.timeline.save_state(self.current_global_time)
+            seg.overlays = items
+            self.player.refresh_current_transform()
+            self.timeline_widget.rebuild_filmstrip()
+            self._update_ui_state()
+            self._show_toast(_("Overlays applied to {name}").format(name=seg.source_name))
+
+        dialog = OverlayDialog(
+            parent=self,
+            segment=seg,
+            on_apply=on_apply,
+            current_time=self.current_global_time,
+            thumbnail_service=self.thumbnail_service,
         )
         dialog.present()
 

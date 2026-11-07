@@ -1,10 +1,15 @@
 """Service to export concatenated segments using FFmpeg filter_complex with real-time progress."""
 
+from __future__ import annotations
+
+import math
 import re
 import subprocess
+import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import gi
 
@@ -12,7 +17,7 @@ gi.require_version("GLib", "2.0")
 from gi.repository import GLib
 
 from ..i18n import _
-from ..models import ExportSettings, Segment
+from ..models import ExportSettings, OverlayItem, Segment
 from .ffmpeg_service import (
     FLAG_AUDIO_BITRATE,
     FLAG_CODEC_AUDIO,
@@ -30,6 +35,7 @@ from .ffmpeg_service import (
     FLAG_VIDEO_TAG,
     FFmpegService,
 )
+from .overlay_service import OverlayRenderService
 from .probe_service import ProbeService
 
 
@@ -125,6 +131,7 @@ class ExportService:
         target_height: int | None = None,
         settings: ExportSettings | None = None,
         fast_seek: bool = False,
+        overlay_temp_dir: Path | None = None,
     ) -> list[str]:
         """Construct the FFmpeg command line for concatenating segments."""
         if not segments:
@@ -163,14 +170,45 @@ class ExportService:
         if target_width is None or target_height is None:
             meta = ProbeService.probe(segments[0].source_path)
             if meta:
-                target_width = meta.width
-                target_height = meta.height
+                rot = segments[0].rotation % 360
+                ow, oh = (meta.height, meta.width) if rot in (90, 270) else (meta.width, meta.height)
+                if segments[0].crop is not None:
+                    cx, cy, cw, ch = segments[0].crop
+                    if not (abs(cx) < 1e-4 and abs(cy) < 1e-4 and abs(cw - 1.0) < 1e-4 and abs(ch - 1.0) < 1e-4):
+                        cw = max(0.01, min(1.0, cw))
+                        ch = max(0.01, min(1.0, ch))
+                        target_width = int(math.floor(ow * cw / 2.0) * 2)
+                        target_height = int(math.floor(oh * ch / 2.0) * 2)
+                    else:
+                        target_width = ow
+                        target_height = oh
+                else:
+                    target_width = ow
+                    target_height = oh
             else:
                 target_width, target_height = 1920, 1080
 
         # Make dimensions even (required by most encoders)
-        target_width = target_width - (target_width % 2)
-        target_height = target_height - (target_height % 2)
+        target_width = max(2, target_width - (target_width % 2))
+        target_height = max(2, target_height - (target_height % 2))
+
+        def get_segment_oriented_crop_dims(s: Segment) -> tuple[int, int]:
+            meta_s = ProbeService.probe(s.source_path)
+            src_w = meta_s.width if meta_s else (target_width or 1920)
+            src_h = meta_s.height if meta_s else (target_height or 1080)
+            rot_s = s.rotation % 360
+            ow_s, oh_s = (src_h, src_w) if rot_s in (90, 270) else (src_w, src_h)
+            if s.crop is not None:
+                cx, cy, cw, ch = s.crop
+                if not (abs(cx) < 1e-4 and abs(cy) < 1e-4 and abs(cw - 1.0) < 1e-4 and abs(ch - 1.0) < 1e-4):
+                    cw = max(0.01, min(1.0, cw))
+                    ch = max(0.01, min(1.0, ch))
+                    sw = int(math.floor(ow_s * cw / 2.0) * 2)
+                    sh = int(math.floor(oh_s * ch / 2.0) * 2)
+                    return max(2, sw), max(2, sh)
+            sw = int(math.floor(ow_s / 2.0) * 2)
+            sh = int(math.floor(oh_s / 2.0) * 2)
+            return max(2, sw), max(2, sh)
 
         # 3. Assemble command inputs
         cmd = ["ffmpeg", FLAG_OVERWRITE]
@@ -179,6 +217,81 @@ class ExportService:
             if min_s > 0.0:
                 cmd.extend([FLAG_SEEK, f"{min_s:.3f}"])
             cmd.extend([FLAG_INPUT, str(p)])
+
+        # 3b. Overlay inputs
+        # Group overlay items into static and animated layers to avoid generating thousands of PNG frames on disk
+        segment_overlay_layers: dict[int, list[tuple[str, int, OverlayItem | None]]] = {}
+        segment_video_audio_overlays: dict[int, list[tuple[int, OverlayItem]]] = {}
+        segment_audio_overlays: dict[int, list[tuple[int, OverlayItem]]] = {}
+        if overlay_temp_dir is None:
+            overlay_temp_dir = Path(tempfile.gettempdir()) / "video_cut_export_overlays"
+        overlay_temp_dir.mkdir(parents=True, exist_ok=True)
+
+        current_input_idx = len(unique_paths)
+        for j, seg in enumerate(segments):
+            if seg.has_overlays:
+                seg_w, seg_h = get_segment_oriented_crop_dims(seg)
+                sorted_overlays = sorted(seg.overlays, key=lambda it: it.z_index)
+
+                raw_layers: list[tuple[str, Any]] = []
+                current_static: list[OverlayItem] = []
+
+                for it in sorted_overlays:
+                    # Audio items are handled exclusively in the audio filter pipeline
+                    if it.item_type == "audio":
+                        continue
+
+                    is_anim = it.item_type in ("video", "gif") or (
+                        it.media_path
+                        and Path(it.media_path).suffix.lower() in (".mp4", ".webm", ".mov", ".mkv", ".avi", ".gif")
+                    )
+                    if is_anim and it.media_path and Path(it.media_path).is_file():
+                        if current_static:
+                            raw_layers.append(("static", current_static))
+                            current_static = []
+                        raw_layers.append(("animated", it))
+                    else:
+                        current_static.append(it)
+                if current_static:
+                    raw_layers.append(("static", current_static))
+
+                seg_layers: list[tuple[str, int, OverlayItem | None]] = []
+                single_static = (len(raw_layers) == 1 and raw_layers[0][0] == "static")
+
+                for l_idx, (l_type, l_data) in enumerate(raw_layers):
+                    if l_type == "static":
+                        png_filename = f"overlay_seg_{j}.png" if single_static else f"overlay_seg_{j}_l{l_idx}.png"
+                        png_path = overlay_temp_dir / png_filename
+                        OverlayRenderService.render_overlays_to_png(l_data, png_path, seg_w, seg_h)
+                        cmd.extend(["-loop", "1", FLAG_INPUT, str(png_path)])
+                        seg_layers.append(("static", current_input_idx, None))
+                        current_input_idx += 1
+                    else:
+                        it = l_data
+                        if it.is_loop:
+                            cmd.extend(["-stream_loop", "-1", FLAG_INPUT, str(it.media_path)])
+                        else:
+                            cmd.extend([FLAG_INPUT, str(it.media_path)])
+                        seg_layers.append(("animated", current_input_idx, it))
+                        if it.enable_audio and it.media_path and Path(it.media_path).is_file():
+                            if j not in segment_video_audio_overlays:
+                                segment_video_audio_overlays[j] = []
+                            segment_video_audio_overlays[j].append((current_input_idx, it))
+                        current_input_idx += 1
+
+                segment_overlay_layers[j] = seg_layers
+
+                # Collect standalone audio overlay items
+                for it in sorted_overlays:
+                    if it.item_type == "audio" and it.media_path and Path(it.media_path).is_file():
+                        if it.is_loop:
+                            cmd.extend(["-stream_loop", "-1", FLAG_INPUT, str(it.media_path)])
+                        else:
+                            cmd.extend([FLAG_INPUT, str(it.media_path)])
+                        if j not in segment_audio_overlays:
+                            segment_audio_overlays[j] = []
+                        segment_audio_overlays[j].append((current_input_idx, it))
+                        current_input_idx += 1
 
         # 4. Assemble filter_complex
         filter_parts: list[str] = []
@@ -221,29 +334,155 @@ class ExportService:
                         f"crop=w='floor(iw*{cw:.5f}/2)*2':h='floor(ih*{ch:.5f}/2)*2':x='floor(iw*{cx:.5f}/2)*2':y='floor(ih*{cy:.5f}/2)*2'"
                     )
 
-            v_chain.extend([
+            post_scale_pad = [
                 f"scale={target_width}:{target_height}:force_original_aspect_ratio=decrease",
                 f"pad={target_width}:{target_height}:(ow-iw)/2:(oh-ih)/2",
                 "setsar=1",
-            ])
-
+            ]
             if settings and settings.fps is not None and settings.fps > 0:
-                v_chain.append(f"fps={settings.fps:.3f}")
+                post_scale_pad.append(f"fps={settings.fps:.3f}")
 
-            v_filter = f"[{in_idx}:v]{','.join(v_chain)}[{v_label}]"
+            if seg.has_overlays and j in segment_overlay_layers and segment_overlay_layers[j]:
+                layers = segment_overlay_layers[j]
+                v_curr = f"v{j}_base"
+                v_filter = f"[{in_idx}:v]{','.join(v_chain)}[{v_curr}]"
+                filter_parts.append(v_filter)
+
+                seg_w, seg_h = get_segment_oriented_crop_dims(seg)
+                for idx, (l_type, in_layer_idx, it) in enumerate(layers):
+                    is_last = (idx == len(layers) - 1)
+                    v_next = f"v{j}_overlaid" if is_last else f"v{j}_l{idx}"
+
+                    if l_type == "static":
+                        filter_parts.append(
+                            f"[{v_curr}][{in_layer_idx}:v]overlay=0:0:shortest=1:eof_action=repeat[{v_next}]"
+                        )
+                    else:
+                        assert it is not None
+                        w_px = max(2, int(round(it.width * seg_w)) & ~1)
+                        h_px = max(2, int(round(it.height * seg_h)) & ~1)
+                        center_x = it.x * seg_w
+                        center_y = it.y * seg_h
+                        anim_label = f"anim_{j}_{idx}"
+
+                        anim_filters: list[str] = []
+                        if it.start_time > 0.0:
+                            anim_filters.append(f"setpts=PTS-STARTPTS+{it.start_time:.3f}/TB")
+                        else:
+                            anim_filters.append("setpts=PTS-STARTPTS")
+
+                        anim_filters.append(f"scale={w_px}:{h_px}")
+                        anim_filters.append("format=yuva420p")
+
+                        if it.opacity < 0.999:
+                            anim_filters.append(f"colorchannelmixer=aa={it.opacity:.3f}")
+
+                        if abs(it.rotation % 360) > 0.01:
+                            rot_rad = math.radians(it.rotation % 360)
+                            anim_filters.append(
+                                f"rotate='{rot_rad:.5f}':ow='rotw({rot_rad:.5f})':oh='roth({rot_rad:.5f})':c=none"
+                            )
+
+                        filter_parts.append(f"[{in_layer_idx}:v]{','.join(anim_filters)}[{anim_label}]")
+
+                        overlay_opts = [
+                            f"x='{center_x:.2f}-w/2'",
+                            f"y='{center_y:.2f}-h/2'",
+                            "shortest=1",
+                            "eof_action=repeat",
+                        ]
+                        if it.start_time > 0.0 or it.end_time is not None:
+                            st = max(0.0, it.start_time)
+                            et = it.end_time if it.end_time is not None else seg.duration
+                            overlay_opts.append(f"enable='between(t,{st:.3f},{et:.3f})'")
+
+                        filter_parts.append(
+                            f"[{v_curr}][{anim_label}]overlay={':'.join(overlay_opts)}[{v_next}]"
+                        )
+
+                    v_curr = v_next
+
+                scale_pad_filter = f"[{v_curr}]{','.join(post_scale_pad)}[{v_label}]"
+                filter_parts.append(scale_pad_filter)
+            else:
+                v_chain.extend(post_scale_pad)
+                v_filter = f"[{in_idx}:v]{','.join(v_chain)}[{v_label}]"
+                filter_parts.append(v_filter)
+
+            extra_audio_inputs: list[str] = []
+
+            # 1. Video overlays with enable_audio
+            if j in segment_video_audio_overlays:
+                for v_idx, (in_layer_idx, it) in enumerate(segment_video_audio_overlays[j]):
+                    if it.media_path and ProbeService.has_audio(it.media_path):
+                        a_sub_lbl = f"a{j}_sub_{v_idx}"
+                        sub_st = max(0.0, it.start_time)
+                        sub_dur = seg.duration - sub_st
+                        if sub_dur > 0:
+                            v_a_parts = [
+                                f"atrim=duration={sub_dur:.3f}",
+                                "asetpts=PTS-STARTPTS",
+                            ]
+                            if sub_st > 0.0:
+                                d_ms = int(round(sub_st * 1000))
+                                v_a_parts.append(f"adelay={d_ms}|{d_ms}")
+                            vol = getattr(it, "audio_volume", 1.0)
+                            if abs(vol - 1.0) > 0.001:
+                                v_a_parts.append(f"volume={vol:.2f}")
+                            v_a_parts.extend(["aresample=48000", "aformat=channel_layouts=stereo"])
+                            filter_parts.append(f"[{in_layer_idx}:a]{','.join(v_a_parts)}[{a_sub_lbl}]")
+                            extra_audio_inputs.append(a_sub_lbl)
+
+            # 2. Audio overlay items
+            if j in segment_audio_overlays:
+                for a_idx, (in_layer_idx, it) in enumerate(segment_audio_overlays[j]):
+                    a_ov_lbl = f"a{j}_ov_{a_idx}"
+                    a_start = max(0.0, it.audio_start)
+                    a_end = it.audio_end
+                    sub_st = max(0.0, it.start_time)
+                    max_dur = seg.duration - sub_st
+
+                    ov_parts = []
+                    if a_end is not None and a_end > a_start:
+                        ov_parts.append(f"atrim=start={a_start:.3f}:end={a_end:.3f}")
+                    elif a_start > 0.0:
+                        ov_parts.append(f"atrim=start={a_start:.3f}")
+                    ov_parts.append("asetpts=PTS-STARTPTS")
+
+                    if it.is_loop:
+                        ov_parts.append(f"atrim=duration={max_dur:.3f}")
+
+                    if sub_st > 0.0:
+                        d_ms = int(round(sub_st * 1000))
+                        ov_parts.append(f"adelay={d_ms}|{d_ms}")
+
+                    ov_parts.append(f"atrim=duration={seg.duration:.3f}")
+                    vol = getattr(it, "audio_volume", 1.0)
+                    if abs(vol - 1.0) > 0.001:
+                        ov_parts.append(f"volume={vol:.2f}")
+                    ov_parts.extend(["aresample=48000", "aformat=channel_layouts=stereo"])
+                    filter_parts.append(f"[{in_layer_idx}:a]{','.join(ov_parts)}[{a_ov_lbl}]")
+                    extra_audio_inputs.append(a_ov_lbl)
+
+            a_base_lbl = f"a{j}_base" if extra_audio_inputs else a_label
             if path_has_audio.get(seg.source_path, True):
                 a_filter = (
                     f"[{in_idx}:a]atrim=start={trimmed_start:.3f}:end={trimmed_end:.3f},"
                     f"asetpts=PTS-STARTPTS,"
-                    f"aresample=48000,aformat=channel_layouts=stereo[{a_label}]"
+                    f"aresample=48000,aformat=channel_layouts=stereo[{a_base_lbl}]"
                 )
             else:
                 a_filter = (
-                    f"anullsrc=r=48000:cl=stereo,atrim=duration={seg.duration:.3f}[{a_label}]"
+                    f"anullsrc=r=48000:cl=stereo,atrim=duration={seg.duration:.3f}[{a_base_lbl}]"
+                )
+            filter_parts.append(a_filter)
+
+            if extra_audio_inputs:
+                all_a = [a_base_lbl] + extra_audio_inputs
+                filter_parts.append(
+                    f"{''.join(f'[{lbl}]' for lbl in all_a)}amix=inputs={len(all_a)}:duration=first:dropout_transition=0[{a_label}]"
                 )
 
-            filter_parts.append(v_filter)
-            filter_parts.append(a_filter)
             concat_inputs.append(f"[{v_label}][{a_label}]")
 
         n_segs = len(segments)
@@ -318,67 +557,74 @@ class ExportService:
         out_path = Path(output_path)
 
         def worker() -> None:
-            try:
-                cmd = self.build_ffmpeg_command(segments, out_path, settings=settings, fast_seek=True)
-            except Exception as e:
-                GLib.idle_add(on_done, False, str(e))
-                return
+            with tempfile.TemporaryDirectory(prefix="video_cut_overlays_") as tmp_dir:
+                try:
+                    cmd = self.build_ffmpeg_command(
+                        segments,
+                        out_path,
+                        settings=settings,
+                        fast_seek=True,
+                        overlay_temp_dir=Path(tmp_dir),
+                    )
+                except Exception as e:
+                    GLib.idle_add(on_done, False, str(e))
+                    return
 
-            try:
-                self._process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    bufsize=1,
-                )
+                try:
+                    self._process = subprocess.Popen(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        bufsize=1,
+                    )
 
-                stderr_lines: list[str] = []
-                def drain_stderr():
-                    if self._process and self._process.stderr:
-                        try:
-                            for line in self._process.stderr:
-                                stderr_lines.append(line)
-                                if len(stderr_lines) > 200:
-                                    stderr_lines.pop(0)
-                        except Exception:
-                            pass
+                    stderr_lines: list[str] = []
+                    def drain_stderr():
+                        if self._process and self._process.stderr:
+                            try:
+                                for line in self._process.stderr:
+                                    stderr_lines.append(line)
+                                    if len(stderr_lines) > 200:
+                                        stderr_lines.pop(0)
+                            except Exception:
+                                pass
 
-                stderr_thread = threading.Thread(target=drain_stderr, daemon=True)
-                stderr_thread.start()
+                    stderr_thread = threading.Thread(target=drain_stderr, daemon=True)
+                    stderr_thread.start()
 
-                time_pattern = re.compile(r"out_time_us=(\d+)")
+                    time_pattern = re.compile(r"out_time_us=(\d+)")
 
-                while True:
-                    if self._cancelled:
-                        if self._process:
-                            self._process.terminate()
-                        GLib.idle_add(on_done, False, "Export cancelled by user")
-                        return
+                    while True:
+                        if self._cancelled:
+                            if self._process:
+                                self._process.terminate()
+                            GLib.idle_add(on_done, False, "Export cancelled by user")
+                            return
 
-                    line = self._process.stdout.readline() if self._process.stdout else ""
-                    if not line and self._process.poll() is not None:
-                        break
+                        line = self._process.stdout.readline() if self._process.stdout else ""
+                        if not line and self._process.poll() is not None:
+                            break
 
-                    m = time_pattern.search(line)
-                    if m:
-                        cur_us = int(m.group(1))
-                        cur_s = cur_us / 1_000_000.0
-                        fraction = min(1.0, max(0.0, cur_s / total_duration))
-                        GLib.idle_add(on_progress, fraction, cur_s)
+                        m = time_pattern.search(line)
+                        if m:
+                            cur_us = int(m.group(1))
+                            cur_s = cur_us / 1_000_000.0
+                            fraction = min(1.0, max(0.0, cur_s / total_duration))
+                            GLib.idle_add(on_progress, fraction, cur_s)
 
-                rc = self._process.wait()
-                stderr_thread.join(timeout=1.0)
-                if rc == 0 and not self._cancelled:
-                    GLib.idle_add(on_progress, 1.0, total_duration)
-                    GLib.idle_add(on_done, True, None)
-                else:
-                    stderr_msg = "".join(stderr_lines)[-500:]
-                    GLib.idle_add(on_done, False, f"FFmpeg failed (code {rc}): {stderr_msg}")
-            except Exception as e:
-                GLib.idle_add(on_done, False, str(e))
-            finally:
-                self._process = None
+                    rc = self._process.wait()
+                    stderr_thread.join(timeout=1.0)
+                    if rc == 0 and not self._cancelled:
+                        GLib.idle_add(on_progress, 1.0, total_duration)
+                        GLib.idle_add(on_done, True, None)
+                    else:
+                        stderr_msg = "".join(stderr_lines)[-500:]
+                        GLib.idle_add(on_done, False, f"FFmpeg failed (code {rc}): {stderr_msg}")
+                except Exception as e:
+                    GLib.idle_add(on_done, False, str(e))
+                finally:
+                    self._process = None
 
         self._thread = threading.Thread(target=worker, daemon=True)
         self._thread.start()

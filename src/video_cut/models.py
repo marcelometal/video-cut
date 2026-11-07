@@ -2,10 +2,83 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from .utils import clamp, generate_id
+
+
+@dataclass
+class OverlayItem:
+    """Represents a graphic, text, shape, image, sticker, or video overlay on a video segment."""
+
+    id: str = field(default_factory=generate_id)
+    item_type: str = "text"  # "text", "rect", "circle", "image", "svg", "gif", "video"
+    x: float = 0.5  # Center X normalized (0.0 to 1.0)
+    y: float = 0.5  # Center Y normalized (0.0 to 1.0)
+    width: float = 0.3  # Width normalized (0.0 to 1.0)
+    height: float = 0.2  # Height normalized (0.0 to 1.0)
+    rotation: float = 0.0  # Angle in degrees (0.0 to 360.0)
+    opacity: float = 1.0  # 0.0 to 1.0
+    z_index: int = 0
+
+    # Text attributes
+    text: str = ""
+    font_family: str = "Sans"
+    font_size: int = 36
+    font_color: str = "#ffffff"
+    bold: bool = False
+    italic: bool = False
+    bg_color: str | None = None
+    text_align: str = "center"  # "left", "center", "right"
+    text_valign: str = "middle"  # "top", "middle", "bottom"
+
+    # Shape attributes
+    fill_color: str = "#ff5500"
+    border_color: str = "#ffffff"
+    border_width: int = 3
+    corner_radius: float = 0.0  # Normalized (0.0 to 0.5)
+
+    # Media attributes
+    media_path: Path | str | None = None
+    is_loop: bool = True
+
+    # Timing attributes (relative to segment start)
+    start_time: float = 0.0
+    end_time: float | None = None  # None = entire segment duration
+
+    # Transform constraints
+    keep_aspect_ratio: bool = True
+
+    # Audio attributes (for video overlays and audio elements)
+    enable_audio: bool = False  # For video overlay: mix video audio into export
+    audio_start: float = 0.0    # For audio element: start point in source audio file
+    audio_end: float | None = None  # For audio element: finish point in source audio file
+    audio_volume: float = 1.0   # Audio volume multiplier (0.0 to 2.0, default 1.0 = 100%)
+
+    def __post_init__(self) -> None:
+        if self.media_path is not None:
+            self.media_path = Path(self.media_path)
+        self.rotation = float(self.rotation) % 360.0
+        self.opacity = clamp(float(self.opacity), 0.0, 1.0)
+        self.width = max(0.01, float(self.width))
+        self.height = max(0.01, float(self.height))
+        self.audio_start = max(0.0, float(self.audio_start))
+        self.audio_volume = clamp(float(self.audio_volume), 0.0, 2.0)
+        if self.text_align not in ("left", "center", "right"):
+            self.text_align = "center"
+        if self.text_valign not in ("top", "middle", "bottom"):
+            self.text_valign = "middle"
+
+    def copy(self) -> OverlayItem:
+        """Create an exact copy with identical ID."""
+        return replace(self)
+
+    def clone(self) -> OverlayItem:
+        """Create a duplicate with a new ID."""
+        item = self.copy()
+        item.id = generate_id()
+        return item
 
 
 @dataclass
@@ -24,6 +97,7 @@ class Segment:
     hflip: bool = False
     vflip: bool = False
     orig_image_path: Path | None = None
+    overlays: list[OverlayItem] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.source_path = Path(self.source_path)
@@ -34,6 +108,7 @@ class Segment:
         self.start_time = clamp(self.start_time, 0.0, self.source_duration)
         self.end_time = clamp(self.end_time, self.start_time, self.source_duration)
         self.rotation = int(self.rotation) % 360
+        self.overlays = [item.copy() if hasattr(item, "copy") else item for item in self.overlays]
 
     @property
     def duration(self) -> float:
@@ -61,6 +136,11 @@ class Segment:
         )
         return has_crop or (self.rotation % 360 != 0) or self.hflip or self.vflip
 
+    @property
+    def has_overlays(self) -> bool:
+        """Return True if this segment has any overlay items."""
+        return len(self.overlays) > 0
+
     def clone(self, new_start: float | None = None, new_end: float | None = None) -> Segment:
         """Create a new segment copy with a new ID."""
         is_trimmed = (new_start is not None) or (new_end is not None)
@@ -77,6 +157,7 @@ class Segment:
             hflip=self.hflip,
             vflip=self.vflip,
             orig_image_path=self.orig_image_path,
+            overlays=[item.clone() for item in self.overlays],
         )
 
     def copy(self) -> Segment:
@@ -94,6 +175,7 @@ class Segment:
             hflip=self.hflip,
             vflip=self.vflip,
             orig_image_path=self.orig_image_path,
+            overlays=[item.copy() for item in self.overlays],
         )
 
 

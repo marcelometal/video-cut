@@ -296,3 +296,24 @@ popover.square-menu button.flat:hover {
     background-color: alpha(currentColor, 0.1);
 }
 
+.properties-sidebar {
+    min-width: 250px;
+}
+
+
+/* Overlay Workspace & Canvas */
+.overlay-workspace,
+.overlay-workspace viewport,
+.overlay-workspace > viewport {
+    background-color: @view_bg_color;
+}
+
+.overlay-video-frame {
+    background-color: #000000;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 0 1px alpha(currentColor, 0.15);
+    border-radius: 2px;
+}
+
+
+
+
