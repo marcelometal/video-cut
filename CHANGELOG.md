@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.4.0] - 2026-11-07
+
+### 🎨 Video Overlay Editor
+- **Rich Text Overlays**:
+  - Full multiline text editing with automatic and manual bounding box sizing.
+  - Native GTK Font Chooser dialog integration with system language filtering and safe font fallback.
+  - Configurable font size, text color, bold, and italic styles.
+  - Independent horizontal text alignment (Left, Center, Right) and vertical text alignment (Top, Middle, Bottom) with custom symbolic icons styled to match GNOME/Yaru themes.
+  - Visual opacity control (0%–100%) and layer reordering (`Page Up` / `Page Down`).
+- **Geometric Shapes**:
+  - Vector rectangles and circles with configurable fill color, border color, border thickness, and corner radius.
+  - Independent width and height resizing with optional aspect ratio preservation.
+- **Media & Sticker Overlays**:
+  - Import static images (PNG, JPEG, WebP) with transparent alpha channels.
+  - Scalable vector graphics (SVG) with sharp, resolution-independent rendering.
+  - Animated GIF support with frame-accurate looping, timing controls, and in-memory frame duration caching.
+  - Picture-in-picture (PIP) video overlays (`.mp4`, `.webm`, `.mov`, `.mkv`) with sub-segment time trimming, looping, and volume control.
+- **Audio Overlays & Live Playback**:
+  - Add background audio tracks and sound effects to video segments.
+  - Volume control (0%–200%) and timeline synchronization (`audio_start`, `audio_end`).
+  - Dedicated `OverlayAudioPlayer` providing synchronized live audio playback during editing in the overlay dialog.
+- **Multi-Element Selection & Manipulation**:
+  - Multi-select via `Ctrl+Click`, `Shift+Click`, or click-and-drag rubberband marquee rectangle.
+  - Translucent system accent color rubberband selection rectangle.
+  - Simultaneous multi-element dragging, position adjustment, and proportional resizing.
+  - Inter-object alignment (Align Left, Center, Right, Top, Middle, Bottom) and distribution (Distribute Horizontally, Vertically).
+  - Contextual property inspector displaying shared attributes across selected elements without visual clutter.
+- **Universal Clipboard & Context Menu**:
+  - Cut (`Ctrl+X`), Copy (`Ctrl+C`), Paste (`Ctrl+V`), and Duplicate (`Ctrl+D`) operations for both single and multiple selected overlays.
+  - Select All (`Ctrl+A`) support via keyboard shortcut and menu.
+  - Custom right-click context menu with keyboard shortcut hints.
+- **Undo / Redo History**:
+  - Complete multi-level undo (`Ctrl+Z`) and redo (`Ctrl+Shift+Z` / `Ctrl+Y`) for all overlay creations, movements, transformations, deletions, and property modifications.
+- **High-Performance Export Engine**:
+  - Static overlay layer batching into single composite PNG surfaces, avoiding disk I/O and frame-by-frame overhead.
+  - Dynamic animated overlay synchronization for GIFs and PIP videos.
+  - Multi-track audio mixing (`amix`) and volume scaling.
+
+---
+
 ## [0.3.0] - 2026-10-27
 
 ### ⚡ Performance & Responsiveness

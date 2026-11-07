@@ -52,6 +52,8 @@ modules:
       - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/align-vertical-bottom-symbolic.svg /app/share/icons/hicolor/scalable/actions/align-vertical-bottom-symbolic.svg
       - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/distribute-horizontal-symbolic.svg /app/share/icons/hicolor/scalable/actions/distribute-horizontal-symbolic.svg
       - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/distribute-vertical-symbolic.svg /app/share/icons/hicolor/scalable/actions/distribute-vertical-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/shape-rectangle-symbolic.svg /app/share/icons/hicolor/scalable/actions/shape-rectangle-symbolic.svg
+      - install -Dm644 src/video_cut/resources/hicolor/scalable/actions/shape-circle-symbolic.svg /app/share/icons/hicolor/scalable/actions/shape-circle-symbolic.svg
       # Install sized PNG application icons
       - install -Dm644 src/video_cut/resources/icon_16.png /app/share/icons/hicolor/16x16/apps/io.github.thor27.video-cut.png
       - install -Dm644 src/video_cut/resources/icon_24.png /app/share/icons/hicolor/24x24/apps/io.github.thor27.video-cut.png

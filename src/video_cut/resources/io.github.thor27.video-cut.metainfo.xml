@@ -53,6 +53,24 @@
   </screenshots>
 
   <releases>
+    <release version="0.4.0" date="2026-11-07">
+      <url type="details">https://github.com/thor27/video-cut/releases/tag/v0.4.0</url>
+      <description>
+        <p>Highlights of version 0.4.0:</p>
+        <ul>
+          <li>Interactive Video Overlay Editor: add text, shapes, media, and audio overlays to video segments</li>
+          <li>Text overlays: font family selector, multiline text, size, color, bold, italic, and horizontal/vertical alignment</li>
+          <li>Shape overlays: rectangles and circles with configurable fill color, border color, border width, and corner radius</li>
+          <li>Media overlays: import images (PNG, JPEG, WebP), SVG vectors, animated GIFs, and PIP video clips</li>
+          <li>Audio overlays: volume control, timeline synchronization, and live audio playback during editing</li>
+          <li>Multi-element selection: Ctrl+Click, Shift+Click, and rubberband marquee drag selection</li>
+          <li>Bulk transformation: move, resize, align (left/center/right, top/middle/bottom), and distribute selected elements</li>
+          <li>Universal overlay clipboard: cut, copy, paste, duplicate, and select all with context menu and keyboard shortcuts</li>
+          <li>Undo and Redo history: seamless undo/redo for all overlay modifications and transformations</li>
+          <li>High-performance Cairo and FFmpeg export pipeline with static layer caching and audio mixing</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-10-27">
       <url type="details">https://github.com/thor27/video-cut/releases/tag/v0.3.0</url>
       <description>
