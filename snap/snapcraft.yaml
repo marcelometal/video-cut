@@ -24,6 +24,7 @@ apps:
     common-id: io.github.thor27.video-cut
     desktop: usr/share/applications/io.github.thor27.video-cut.desktop
     environment:
+      PYTHONPATH: $SNAP/lib/python3.12/site-packages:$SNAP/usr/lib/python3/dist-packages:$PYTHONPATH
       LD_LIBRARY_PATH: $SNAP/gnome-platform/usr/lib/x86_64-linux-gnu:$SNAP/gnome-platform/lib/x86_64-linux-gnu:$SNAP/gnome-platform/usr/lib/aarch64-linux-gnu:$SNAP/gnome-platform/lib/aarch64-linux-gnu:$SNAP/usr/lib/x86_64-linux-gnu/blas:$SNAP/usr/lib/x86_64-linux-gnu/lapack:$SNAP/usr/lib/aarch64-linux-gnu/blas:$SNAP/usr/lib/aarch64-linux-gnu/lapack:$LD_LIBRARY_PATH
       GST_PLUGIN_SYSTEM_PATH_1_0: $SNAP/gnome-platform/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$SNAP/usr/lib/x86_64-linux-gnu/gstreamer-1.0:$SNAP/gnome-platform/usr/lib/aarch64-linux-gnu/gstreamer-1.0:$SNAP/usr/lib/aarch64-linux-gnu/gstreamer-1.0
     plugs:
@@ -39,8 +40,13 @@ apps:
 
 parts:
   video-cut:
-    plugin: python
+    plugin: nil
     source: .
+    build-packages:
+      - python3-pip
+      - python3-setuptools
+      - python3-wheel
+      - python3-build
     stage-packages:
       - ffmpeg
       - gstreamer1.0-plugins-good
@@ -65,7 +71,11 @@ parts:
       VERSION="$(grep -m1 '^__version__' src/video_cut/__init__.py | cut -d'"' -f2)"
       craftctl set version="$VERSION"
     override-build: |
-      craftctl default
+      # Install video-cut using isolated PYTHONPATH and no-build-isolation
+      PYTHONPATH="" python3 -m pip install --no-build-isolation --no-deps -U --prefix="${CRAFT_PART_INSTALL}" .
+
+      # Fix shebangs to use portable env python3
+      sed -i 's|^#!.*python.*|#!/usr/bin/env python3|' "${CRAFT_PART_INSTALL}/bin/"* || true
       # Ensure style.css and package assets are in installed site-packages
       for pydir in ${CRAFT_PART_INSTALL}/lib/python*/site-packages/video_cut; do
         if [ -d "$pydir" ]; then
