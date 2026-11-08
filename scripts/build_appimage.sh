@@ -35,22 +35,32 @@ done
 # 2. Copy Python Source Code and Resources
 cp -r "${REPO_ROOT}/src/video_cut/"* "${APPDIR}/usr/lib/python3/dist-packages/video_cut/"
 
-# Prefer system python3 for building/bundling dependencies to match host distro ABI
-SYS_PYTHON=""
-if [ -x "/usr/bin/python3" ]; then
-    SYS_PYTHON="/usr/bin/python3"
-elif [ -x "/bin/python3" ]; then
-    SYS_PYTHON="/bin/python3"
-else
-    SYS_PYTHON="$(command -v python3)"
+# Determine host python major.minor version
+HOST_PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3.12")"
+
+# Bundle Pillow dependency for standard Python versions into version-specific directories
+if command -v pip >/dev/null 2>&1 || python3 -m pip --version >/dev/null 2>&1; then
+    PIP_CMD="$(command -v pip 2>/dev/null || echo "python3 -m pip")"
+    for pyver in 3.10 3.11 3.12 3.13; do
+        target_dir="${APPDIR}/usr/lib/python${pyver}/dist-packages"
+        wheel_tmp="$(mktemp -d)"
+        if $PIP_CMD download --only-binary=:all: --no-deps --dest "$wheel_tmp" --platform manylinux2014_x86_64 --python-version "${pyver}" Pillow >/dev/null 2>&1; then
+            for whl in "$wheel_tmp"/*.whl; do
+                if [ -f "$whl" ]; then
+                    mkdir -p "$target_dir"
+                    unzip -q -o "$whl" -d "$target_dir"
+                fi
+            done
+        fi
+        rm -rf "$wheel_tmp"
+    done
 fi
 
-# Bundle Pillow dependency into AppDir
+# Also preserve host distribution PIL if available (e.g. for host python 3.14+)
 if [ -d "/usr/lib/python3/dist-packages/PIL" ]; then
-    cp -r /usr/lib/python3/dist-packages/PIL "${APPDIR}/usr/lib/python3/dist-packages/"
-    cp -r /usr/lib/python3/dist-packages/Pillow*.dist-info "${APPDIR}/usr/lib/python3/dist-packages/" 2>/dev/null || true
-elif "$SYS_PYTHON" -m pip --version >/dev/null 2>&1; then
-    "$SYS_PYTHON" -m pip install --target="${APPDIR}/usr/lib/python3/dist-packages" --no-deps Pillow || true
+    mkdir -p "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages"
+    cp -r /usr/lib/python3/dist-packages/PIL "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages/"
+    cp -r /usr/lib/python3/dist-packages/Pillow*.dist-info "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages/" 2>/dev/null || true
 fi
 
 # Bundle GObject-Introspection typelibs into AppDir
