@@ -37,10 +37,20 @@ if [ -z "$PYTHON_BIN" ]; then
     exit 1
 fi
 
-# Python environment: bundled packages in AppDir take highest precedence
+# Determine running Python major.minor version
+PY_VER="$("$PYTHON_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+
+# Python environment: bundled pure-python video_cut application directory
 PYTHONPATH="${APPDIR}/usr/lib/python3/dist-packages"
-for py_dir in "${APPDIR}"/usr/lib/python3* /usr/lib/python3* /usr/local/lib/python3*; do
-    if [ -d "${py_dir}/dist-packages" ] && [ "${py_dir}/dist-packages" != "${APPDIR}/usr/lib/python3/dist-packages" ]; then
+
+# If a bundled C extension directory matches the running Python version, include it
+if [ -d "${APPDIR}/usr/lib/python${PY_VER}/dist-packages" ]; then
+    PYTHONPATH="${APPDIR}/usr/lib/python${PY_VER}/dist-packages:${PYTHONPATH}"
+fi
+
+# Include host system Python dist-packages and site-packages
+for py_dir in /usr/lib/python3* /usr/local/lib/python3*; do
+    if [ -d "${py_dir}/dist-packages" ]; then
         PYTHONPATH="${PYTHONPATH}:${py_dir}/dist-packages"
     fi
     if [ -d "${py_dir}/site-packages" ]; then
