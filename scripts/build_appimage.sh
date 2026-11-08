@@ -35,6 +35,15 @@ done
 # 2. Copy Python Source Code and Resources
 cp -r "${REPO_ROOT}/src/video_cut/"* "${APPDIR}/usr/lib/python3/dist-packages/video_cut/"
 
+# Bundle Pillow dependency into AppDir
+if command -v python3 >/dev/null 2>&1 && python3 -m pip --version >/dev/null 2>&1; then
+    python3 -m pip install --target="${APPDIR}/usr/lib/python3/dist-packages" --no-deps Pillow || true
+fi
+if [ ! -d "${APPDIR}/usr/lib/python3/dist-packages/PIL" ] && [ -d "/usr/lib/python3/dist-packages/PIL" ]; then
+    cp -r /usr/lib/python3/dist-packages/PIL "${APPDIR}/usr/lib/python3/dist-packages/"
+    cp -r /usr/lib/python3/dist-packages/Pillow*.dist-info "${APPDIR}/usr/lib/python3/dist-packages/" 2>/dev/null || true
+fi
+
 # Clean up pycache in staging
 find "${APPDIR}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 find "${APPDIR}" -type f -name "*.pyc" -delete 2>/dev/null || true
