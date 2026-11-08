@@ -35,14 +35,36 @@ done
 # 2. Copy Python Source Code and Resources
 cp -r "${REPO_ROOT}/src/video_cut/"* "${APPDIR}/usr/lib/python3/dist-packages/video_cut/"
 
-# Bundle Pillow dependency into AppDir
-if command -v python3 >/dev/null 2>&1 && python3 -m pip --version >/dev/null 2>&1; then
-    python3 -m pip install --target="${APPDIR}/usr/lib/python3/dist-packages" --no-deps Pillow || true
+# Prefer system python3 for building/bundling dependencies to match host distro ABI
+SYS_PYTHON=""
+if [ -x "/usr/bin/python3" ]; then
+    SYS_PYTHON="/usr/bin/python3"
+elif [ -x "/bin/python3" ]; then
+    SYS_PYTHON="/bin/python3"
+else
+    SYS_PYTHON="$(command -v python3)"
 fi
-if [ ! -d "${APPDIR}/usr/lib/python3/dist-packages/PIL" ] && [ -d "/usr/lib/python3/dist-packages/PIL" ]; then
+
+# Bundle Pillow dependency into AppDir
+if [ -d "/usr/lib/python3/dist-packages/PIL" ]; then
     cp -r /usr/lib/python3/dist-packages/PIL "${APPDIR}/usr/lib/python3/dist-packages/"
     cp -r /usr/lib/python3/dist-packages/Pillow*.dist-info "${APPDIR}/usr/lib/python3/dist-packages/" 2>/dev/null || true
+elif "$SYS_PYTHON" -m pip --version >/dev/null 2>&1; then
+    "$SYS_PYTHON" -m pip install --target="${APPDIR}/usr/lib/python3/dist-packages" --no-deps Pillow || true
 fi
+
+# Bundle GObject-Introspection typelibs into AppDir
+mkdir -p "${APPDIR}/usr/lib/x86_64-linux-gnu/girepository-1.0"
+for tlb_dir in /usr/lib/x86_64-linux-gnu/girepository-1.0 /usr/lib64/girepository-1.0 /usr/lib/girepository-1.0; do
+    if [ -d "$tlb_dir" ]; then
+        for typelib in Gtk-4.0 Gdk-4.0 Gsk-4.0 Adw-1 GdkPixbuf-2.0 Pango-1.0 PangoCairo-1.0 cairo-1.0 Gio-2.0 GLib-2.0 GObject-2.0 GModule-2.0 Graphene-1.0 HarfBuzz-0.0 freetype2-2.0 Gst-1.0 GstBase-1.0 GstAudio-1.0 GstVideo-1.0 GstPbutils-1.0 GstPlay-1.0 GstTag-1.0 GstApp-1.0 GstAllocators-1.0 GstGL-1.0; do
+            if [ -f "$tlb_dir/${typelib}.typelib" ]; then
+                cp -f "$tlb_dir/${typelib}.typelib" "${APPDIR}/usr/lib/x86_64-linux-gnu/girepository-1.0/"
+            fi
+        done
+        break
+    fi
+done
 
 # Clean up pycache in staging
 find "${APPDIR}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
