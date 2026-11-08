@@ -38,6 +38,7 @@ jobs:
           files: |
             dist/*.deb
             dist/*.AppImage
+            dist/*.flatpak
             dist/*.tar.gz
             dist/*.zip
         env:
