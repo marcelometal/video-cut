@@ -69,8 +69,13 @@ All version releases, assets, and changelogs are available on the **[GitHub Vers
 
 On Ubuntu / Debian:
 ```bash
-sudo apt install python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 gstreamer1.0-gtk4 ffmpeg
+sudo apt install python3-gi python3-cairo python3-pil gir1.2-gtk-4.0 gir1.2-adw-1 \
+    gir1.2-gstreamer-1.0 gstreamer1.0-gtk4 gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good gstreamer1.0-libav ffmpeg
 ```
+
+Optional: `python3-numpy` speeds up the crop and rotate preview; without it the
+app falls back to a slower PNG conversion.
 
 ### Environment Setup & Running
 
