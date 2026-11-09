@@ -25,7 +25,7 @@ from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from .clipboard_controller import parse_uri_list
 from .i18n import _
-from .models import OverlayItem, Segment, generate_id
+from .models import OverlayItem, Segment
 from .player import TransformedPaintable
 from .services.ffmpeg_service import FFmpegService
 from .services.overlay_audio_player import OverlayAudioPlayer
@@ -2395,8 +2395,9 @@ class OverlayDialog(Adw.Window):
                             self._save_undo_state()
                             new_ids = set()
                             for d in parsed["items"]:
-                                d["id"] = generate_id()
-                                new_item = OverlayItem(**d)
+                                new_item = OverlayItem.from_dict(d)
+                                if new_item is None:
+                                    continue
                                 new_item.x = clamp(new_item.x + 0.03, -1.0, 2.0)
                                 new_item.y = clamp(new_item.y + 0.03, -1.0, 2.0)
                                 new_item.z_index = len(self.items)
@@ -2408,9 +2409,9 @@ class OverlayDialog(Adw.Window):
                     elif "__videocut_overlay__" in text_clean:
                         parsed = json.loads(text_clean)
                         if parsed.get("__videocut_overlay__") and "data" in parsed:
-                            d = parsed["data"]
-                            d["id"] = generate_id()
-                            new_item = OverlayItem(**d)
+                            new_item = OverlayItem.from_dict(parsed["data"])
+                            if new_item is None:
+                                return
                             new_item.x = clamp(new_item.x + 0.03, 0.05, 0.95)
                             new_item.y = clamp(new_item.y + 0.03, 0.05, 0.95)
                             new_item.z_index = len(self.items)
