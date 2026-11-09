@@ -39,25 +39,29 @@ cp -r "${REPO_ROOT}/src/video_cut/"* "${APPDIR}/usr/lib/python3/dist-packages/vi
 HOST_PY_VER="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "3.12")"
 
 # Bundle Pillow dependency for standard Python versions into version-specific directories
+PILLOW_REQ_DIR="${REPO_ROOT}/packaging/appimage"
 if command -v pip >/dev/null 2>&1 || python3 -m pip --version >/dev/null 2>&1; then
     PIP_CMD="$(command -v pip 2>/dev/null || echo "python3 -m pip")"
     for pyver in 3.10 3.11 3.12 3.13; do
         target_dir="${APPDIR}/usr/lib/python${pyver}/dist-packages"
-        wheel_tmp="$(mktemp -d)"
-        if $PIP_CMD download --only-binary=:all: --no-deps --dest "$wheel_tmp" --platform manylinux2014_x86_64 --python-version "${pyver}" Pillow >/dev/null 2>&1; then
-            for whl in "$wheel_tmp"/*.whl; do
-                if [ -f "$whl" ]; then
-                    mkdir -p "$target_dir"
-                    unzip -q -o "$whl" -d "$target_dir"
-                fi
-            done
+        req_file="${PILLOW_REQ_DIR}/requirements-pillow.txt"
+        if [ -f "${PILLOW_REQ_DIR}/requirements-pillow-py${pyver}.txt" ]; then
+            req_file="${PILLOW_REQ_DIR}/requirements-pillow-py${pyver}.txt"
         fi
+        wheel_tmp="$(mktemp -d)"
+        $PIP_CMD download --only-binary=:all: --no-deps --require-hashes \
+            --dest "$wheel_tmp" --platform manylinux_2_28_x86_64 \
+            --python-version "${pyver}" -r "$req_file"
+        for whl in "$wheel_tmp"/*.whl; do
+            mkdir -p "$target_dir"
+            unzip -q -o "$whl" -d "$target_dir"
+        done
         rm -rf "$wheel_tmp"
     done
 fi
 
-# Also preserve host distribution PIL if available (e.g. for host python 3.14+)
-if [ -d "/usr/lib/python3/dist-packages/PIL" ]; then
+# Also preserve host distribution PIL for a host python the pinned wheels do not cover
+if [ -d "/usr/lib/python3/dist-packages/PIL" ] && [ ! -d "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages/PIL" ]; then
     mkdir -p "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages"
     cp -r /usr/lib/python3/dist-packages/PIL "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages/"
     cp -r /usr/lib/python3/dist-packages/Pillow*.dist-info "${APPDIR}/usr/lib/python${HOST_PY_VER}/dist-packages/" 2>/dev/null || true
@@ -135,15 +139,19 @@ cp "${REPO_ROOT}/packaging/appimage/AppRun" "${APPDIR}/AppRun"
 chmod 755 "${APPDIR}/AppRun"
 
 # 7. Locate or Download appimagetool
+APPIMAGETOOL_VERSION="1.9.1"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 APPIMAGETOOL=""
 if command -v appimagetool >/dev/null 2>&1; then
     APPIMAGETOOL="$(command -v appimagetool)"
 elif [ -x "${TOOLS_DIR}/appimagetool" ]; then
     APPIMAGETOOL="${TOOLS_DIR}/appimagetool"
 else
-    echo "==> Downloading appimagetool..."
-    TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-    curl -fsSL -o "${TOOLS_DIR}/appimagetool" "${TOOL_URL}"
+    echo "==> Downloading appimagetool ${APPIMAGETOOL_VERSION}..."
+    TOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+    curl -fsSL -o "${TOOLS_DIR}/appimagetool.download" "${TOOL_URL}"
+    echo "${APPIMAGETOOL_SHA256}  ${TOOLS_DIR}/appimagetool.download" | sha256sum --check --quiet
+    mv "${TOOLS_DIR}/appimagetool.download" "${TOOLS_DIR}/appimagetool"
     chmod +x "${TOOLS_DIR}/appimagetool"
     APPIMAGETOOL="${TOOLS_DIR}/appimagetool"
 fi
