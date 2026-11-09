@@ -155,6 +155,10 @@ Video Cut uses a single source of truth for versioning defined in [`src/video_cu
 ./scripts/set_version.sh 0.2.0     # Set a new version across the project
 ```
 
+## Contributing
+
+Bug reports, translations, packaging fixes and code changes are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, the checks that CI runs, the translation workflow and the pull request conventions. Security issues go through the process in [SECURITY.md](SECURITY.md).
+
 ## Author
 
 - **Thomaz Reis** — [@thor27](https://github.com/thor27)
