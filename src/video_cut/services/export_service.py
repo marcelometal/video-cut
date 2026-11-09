@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import math
+import os
 import re
+import secrets
 import subprocess
 import tempfile
 import threading
@@ -113,6 +116,17 @@ class FFmpegCapabilities:
         if not res and "aac" in encoders:
             res.append(("aac", _("AAC")))
         return res
+
+
+def _is_same_file(a: Path, b: Path) -> bool:
+    try:
+        return os.path.samefile(a, b)
+    except OSError:
+        pass
+    try:
+        return a.resolve() == b.resolve()
+    except (OSError, RuntimeError):
+        return False
 
 
 class ExportService:
@@ -555,13 +569,14 @@ class ExportService:
             return
 
         out_path = Path(output_path)
+        part_path = out_path.with_name(f".{out_path.stem}.{secrets.token_hex(4)}.part{out_path.suffix}")
 
         def worker() -> None:
             with tempfile.TemporaryDirectory(prefix="video_cut_overlays_") as tmp_dir:
                 try:
                     cmd = self.build_ffmpeg_command(
                         segments,
-                        out_path,
+                        part_path,
                         settings=settings,
                         fast_seek=True,
                         overlay_temp_dir=Path(tmp_dir),
@@ -570,6 +585,12 @@ class ExportService:
                     GLib.idle_add(on_done, False, str(e))
                     return
 
+                inputs = [Path(arg) for flag, arg in zip(cmd, cmd[1:], strict=False) if flag == "-i"]
+                if any(_is_same_file(out_path, p) for p in inputs):
+                    GLib.idle_add(on_done, False, "Destination is one of the source files")
+                    return
+
+                exported = False
                 try:
                     self._process = subprocess.Popen(
                         cmd,
@@ -616,6 +637,8 @@ class ExportService:
                     rc = self._process.wait()
                     stderr_thread.join(timeout=1.0)
                     if rc == 0 and not self._cancelled:
+                        os.replace(part_path, out_path)
+                        exported = True
                         GLib.idle_add(on_progress, 1.0, total_duration)
                         GLib.idle_add(on_done, True, None)
                     else:
@@ -625,6 +648,9 @@ class ExportService:
                     GLib.idle_add(on_done, False, str(e))
                 finally:
                     self._process = None
+                    if not exported:
+                        with contextlib.suppress(OSError):
+                            part_path.unlink(missing_ok=True)
 
         self._thread = threading.Thread(target=worker, daemon=True)
         self._thread.start()
