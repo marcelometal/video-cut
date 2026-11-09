@@ -39,6 +39,7 @@ from .ffmpeg_service import (
     FFmpegService,
 )
 from .overlay_service import OverlayRenderService
+from .private_dir import private_dir
 from .probe_service import ProbeService
 
 
@@ -238,7 +239,7 @@ class ExportService:
         segment_video_audio_overlays: dict[int, list[tuple[int, OverlayItem]]] = {}
         segment_audio_overlays: dict[int, list[tuple[int, OverlayItem]]] = {}
         if overlay_temp_dir is None:
-            overlay_temp_dir = Path(tempfile.gettempdir()) / "video_cut_export_overlays"
+            overlay_temp_dir = private_dir("video_cut_export_overlays")
         overlay_temp_dir.mkdir(parents=True, exist_ok=True)
 
         current_input_idx = len(unique_paths)

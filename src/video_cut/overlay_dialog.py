@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import json
 import math
-import tempfile
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict
@@ -30,6 +29,7 @@ from .player import TransformedPaintable
 from .services.ffmpeg_service import FFmpegService
 from .services.overlay_audio_player import OverlayAudioPlayer
 from .services.overlay_service import OverlayRenderService, draw_rounded_rect, parse_color
+from .services.private_dir import private_dir
 from .services.probe_service import ProbeService
 from .utils import clamp, format_time
 
@@ -2318,8 +2318,7 @@ class OverlayDialog(Adw.Window):
         try:
             texture = cb.read_texture_finish(res)
             if texture:
-                temp_dir = Path(tempfile.gettempdir()) / "video_cut_clipboard"
-                temp_dir.mkdir(parents=True, exist_ok=True)
+                temp_dir = private_dir("video_cut_clipboard")
                 temp_path = temp_dir / f"clip_{uuid.uuid4().hex[:8]}.png"
                 texture.save_to_png(str(temp_path))
 
