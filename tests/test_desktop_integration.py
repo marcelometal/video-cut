@@ -1,7 +1,5 @@
 """Tests for Desktop Integration: Drag & Drop and Universal Copy & Paste."""
 
-from pathlib import Path
-
 import gi
 
 gi.require_version("Gtk", "4.0")
@@ -42,9 +40,9 @@ def test_parse_uri_list(tmp_path):
     assert parse_uri_list("") == []
 
 
-def test_desktop_drag_and_drop():
-    v1 = Path("/tmp/test_video.mp4")
-    v2 = Path("/tmp/test_video2.mp4")
+def test_desktop_drag_and_drop(sample_video, sample_video2):
+    v1 = sample_video
+    v2 = sample_video2
 
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.dnd")
     err = []
@@ -111,9 +109,9 @@ def test_desktop_drag_and_drop():
         raise err[0]
 
 
-def test_universal_copy_and_paste():
-    v1 = Path("/tmp/test_video.mp4")
-    v2 = Path("/tmp/test_video2.mp4")
+def test_universal_copy_and_paste(sample_video, sample_video2):
+    v1 = sample_video
+    v2 = sample_video2
 
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.clipboard.universal")
     err = []

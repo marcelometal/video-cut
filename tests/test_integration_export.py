@@ -1,7 +1,6 @@
 """Integration test for full end-to-end export on test video files."""
 
 import time
-from pathlib import Path
 
 import gi
 
@@ -13,9 +12,9 @@ from video_cut.services.export_service import ExportService
 from video_cut.services.probe_service import ProbeService
 
 
-def test_end_to_end_export(tmp_path):
-    v1 = Path("/tmp/test_video.mp4")
-    v2 = Path("/tmp/test_video2.mp4")
+def test_end_to_end_export(tmp_path, sample_video, sample_video2):
+    v1 = sample_video
+    v2 = sample_video2
     assert v1.exists() and v2.exists()
 
     timeline = ProjectTimeline()

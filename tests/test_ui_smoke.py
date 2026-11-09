@@ -11,7 +11,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 from video_cut.window import MainWindow
 
 
-def test_ui_smoke():
+def test_ui_smoke(sample_video, sample_video2):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test")
 
     def run_test(app):
@@ -71,7 +71,7 @@ def test_ui_smoke():
             assert win.timeline_widget.btn_paste == win.btn_paste
             assert win.timeline_widget.btn_delete == win.btn_delete
 
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             assert win.player_stack.get_visible_child_name() == "player"
             assert win.timeline_widget.get_visible() is True
             assert win.top_actions_box.get_visible() is False
@@ -110,7 +110,7 @@ def test_ui_smoke():
             assert abs(win.timeline.segments[1].duration - 3.0) < 0.1
 
             # Add second video as segment
-            win.load_video(Path("/tmp/test_video2.mp4"), replace=False)
+            win.load_video(sample_video2, replace=False)
             assert len(win.timeline.segments) == 3
 
             # Reorder segment
@@ -158,12 +158,12 @@ def test_ui_smoke():
     app.run(["test"])
 
 
-def test_export_dialog_non_closable():
+def test_export_dialog_non_closable(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.exportclose")
 
     def run_test(app):
         win = MainWindow(application=app)
-        win.load_video(Path("/tmp/test_video.mp4"))
+        win.load_video(sample_video)
 
         dialog_holder = []
         orig_present = Adw.Window.present
@@ -213,12 +213,12 @@ def test_export_dialog_non_closable():
     app.run(["test"])
 
 
-def test_export_opens_in_default_player(tmp_path):
+def test_export_opens_in_default_player(tmp_path, sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.openplayer")
 
     def run_test(app):
         win = MainWindow(application=app)
-        win.load_video(Path("/tmp/test_video.mp4"))
+        win.load_video(sample_video)
 
         opened_files = []
         orig_open_player = win._open_in_default_player
@@ -248,7 +248,7 @@ def test_export_opens_in_default_player(tmp_path):
             with unittest.mock.patch.object(Gtk.FileLauncher, "launch") as mock_launch, \
                  unittest.mock.patch.object(Gio.AppInfo, "launch_default_for_uri") as mock_gio, \
                  unittest.mock.patch("subprocess.Popen") as mock_popen:
-                win._open_in_default_player(Path("/tmp/test_video.mp4"))
+                win._open_in_default_player(sample_video)
                 assert mock_launch.called or mock_gio.called or mock_popen.called
         finally:
             win.close()
@@ -307,15 +307,13 @@ def test_thumbnail_progress_toast():
     app.run(["test"])
 
 
-def test_player_controls_margin_at_minimum_window_size():
+def test_player_controls_margin_at_minimum_window_size(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test_margin")
 
     def run_test(app):
         win = MainWindow(application=app)
         try:
-            sample_video = Path("/tmp/test_video.mp4")
-            if sample_video.exists():
-                win.load_video(sample_video, replace=True)
+            win.load_video(sample_video, replace=True)
 
             min_w, _, _, _ = win.measure(Gtk.Orientation.HORIZONTAL, -1)
             min_h, _, _, _ = win.measure(Gtk.Orientation.VERTICAL, -1)

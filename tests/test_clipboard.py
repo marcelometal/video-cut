@@ -34,7 +34,7 @@ def test_timeline_paste_segment():
     assert timeline.selected_segment_id == pasted_end.id
 
 
-def test_clipboard_ui_and_selection():
+def test_clipboard_ui_and_selection(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.clipboard")
 
     def run_test(app):
@@ -55,7 +55,7 @@ def test_clipboard_ui_and_selection():
             assert win.btn_delete.get_icon_name() == "user-trash-symbolic"
 
             # Load video: initially 1 segment
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             assert len(win.timeline.segments) == 1
             assert win.btn_delete.get_sensitive() is True, "Can delete single remaining segment"
             assert win.btn_cut.get_sensitive() is True, "Can cut single remaining segment"

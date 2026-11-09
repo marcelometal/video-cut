@@ -7,8 +7,8 @@ from video_cut.services.probe_service import ProbeService
 from video_cut.services.thumbnail_service import ThumbnailService
 
 
-def test_probe_service():
-    p = Path("/tmp/test_video.mp4")
+def test_probe_service(sample_video):
+    p = sample_video
     meta = ProbeService.probe(p)
     assert meta is not None
     assert meta.width == 640
@@ -17,9 +17,9 @@ def test_probe_service():
     assert meta.fps > 0
 
 
-def test_thumbnail_service_sync_worker(tmp_path):
+def test_thumbnail_service_sync_worker(tmp_path, sample_video):
     service = ThumbnailService(cache_dir=tmp_path)
-    p = Path("/tmp/test_video.mp4")
+    p = sample_video
 
     received = []
     service.generate_thumbnails_async(p, 5.0, lambda path, items: received.append(items))
@@ -35,9 +35,9 @@ def test_thumbnail_service_sync_worker(tmp_path):
         assert t.exists()
 
 
-def test_thumbnail_service_timeline_positions_and_placeholders(tmp_path):
+def test_thumbnail_service_timeline_positions_and_placeholders(tmp_path, sample_video):
     service = ThumbnailService(cache_dir=tmp_path)
-    p = Path("/tmp/test_video.mp4")
+    p = sample_video
 
     # 1. When cache is completely empty, all requested slots are None (placeholders)
     empty_thumbs = service.get_thumbnails_for_segment(p, 0.0, 5.0, max_thumbs=5)
@@ -86,9 +86,9 @@ def test_thumbnail_service_timeline_positions_and_placeholders(tmp_path):
     assert exact_match[1].exists()
 
 
-def test_thumbnail_service_progress_and_cache(tmp_path):
+def test_thumbnail_service_progress_and_cache(tmp_path, sample_video):
     service = ThumbnailService(cache_dir=tmp_path)
-    p = Path("/tmp/test_video.mp4")
+    p = sample_video
 
     progress_ticks = []
     received = []
@@ -156,10 +156,10 @@ def test_image_thumbnail_large_timeline_slots(tmp_path):
         assert t == image_path
 
 
-def test_short_video_timeline_slots_and_sampling(tmp_path):
+def test_short_video_timeline_slots_and_sampling(tmp_path, sample_video):
     """Ensure short videos sample across duration and all timeline slots resolve when complete."""
     service = ThumbnailService(cache_dir=tmp_path)
-    p = Path("/tmp/test_video.mp4")
+    p = sample_video
 
     # Check sample times for short video (3.0s)
     # Generate thumbnails asynchronously
@@ -239,10 +239,10 @@ def test_video_larger_than_one_minute_samples_first_frame_at_10s(tmp_path):
     assert thumbs[0] == first_path
 
 
-def test_video_one_minute_or_less_samples_first_frame_at_zero(tmp_path):
+def test_video_one_minute_or_less_samples_first_frame_at_zero(tmp_path, sample_video):
     """Ensure videos 1 minute or less sample the first frame at 0.0s."""
     service = ThumbnailService(cache_dir=tmp_path)
-    video_path = Path("/tmp/test_video.mp4")
+    video_path = sample_video
 
     received = []
     service.generate_thumbnails_async(

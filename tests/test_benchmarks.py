@@ -2,6 +2,10 @@
 
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("pytest_benchmark")
+
 from video_cut.models import ExportSettings, ProjectTimeline
 from video_cut.services.export_service import ExportService
 from video_cut.services.thumbnail_service import ThumbnailService
