@@ -3,7 +3,6 @@
 import hashlib
 import re
 import subprocess
-import tempfile
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -28,6 +27,7 @@ from .ffmpeg_service import (
     FLAG_SEEK,
     FLAG_SHORTEST,
 )
+from .private_dir import private_dir
 from .probe_service import ProbeService, VideoMetadata
 
 SUPPORTED_IMAGE_EXTENSIONS: set[str] = {
@@ -65,7 +65,7 @@ class ImageService:
             raise FileNotFoundError(f"Image not found: {img_path}")
 
         if cache_dir is None:
-            conv_dir = Path(tempfile.gettempdir()) / "video_cut_cache" / "converted_images"
+            conv_dir = private_dir("video_cut_cache") / "converted_images"
         else:
             conv_dir = Path(cache_dir) / "converted_images"
         conv_dir.mkdir(parents=True, exist_ok=True)

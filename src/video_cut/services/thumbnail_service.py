@@ -3,7 +3,6 @@
 import hashlib
 import json
 import subprocess
-import tempfile
 import threading
 from bisect import bisect_left
 from collections.abc import Callable
@@ -30,6 +29,7 @@ from .ffmpeg_service import (
     FLAG_SEEK,
     FLAG_SKIP_FRAME,
 )
+from .private_dir import private_dir
 
 
 class ThumbnailService:
@@ -37,7 +37,7 @@ class ThumbnailService:
 
     def __init__(self, cache_dir: Path | None = None, max_workers: int = 4) -> None:
         if cache_dir is None:
-            self.cache_dir = Path(tempfile.gettempdir()) / "video_cut_cache"
+            self.cache_dir = private_dir("video_cut_cache")
         else:
             self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
