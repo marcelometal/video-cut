@@ -64,7 +64,7 @@ class ThumbnailService:
             raw = f"{path.resolve()}_{stat.st_size}_{stat.st_mtime}"
         except OSError:
             raw = str(path)
-        return hashlib.md5(raw.encode("utf-8")).hexdigest()
+        return hashlib.md5(raw.encode("utf-8"), usedforsecurity=False).hexdigest()
 
     def _calculate_dt(self, duration: float) -> float:
         """Determine ideal sampling interval in seconds to balance resolution and speed."""
