@@ -87,7 +87,7 @@ class ImageService:
             except OSError:
                 raw += f"_{aud_path}_{audio_start_time:.3f}"
 
-        file_key = hashlib.md5(raw.encode("utf-8")).hexdigest()
+        file_key = hashlib.md5(raw.encode("utf-8"), usedforsecurity=False).hexdigest()
         out_path = conv_dir / f"{file_key}.mp4"
         return img_path, out_path, aud_path
 
