@@ -2,10 +2,40 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+import math
+from dataclasses import Field, dataclass, field, fields, replace
 from pathlib import Path
 
 from .utils import clamp, generate_id
+
+OVERLAY_ITEM_TYPES = frozenset(
+    {"text", "rect", "square", "circle", "image", "svg", "gif", "video", "audio", "emoji"}
+)
+_OPTIONAL_STR_FIELDS = frozenset({"bg_color", "media_path"})
+_OPTIONAL_NUMBER_FIELDS = frozenset({"end_time", "audio_end"})
+
+
+def _is_finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _accepts_overlay_value(f: Field, value: object) -> bool:
+    if value is None:
+        return f.name in _OPTIONAL_STR_FIELDS or f.name in _OPTIONAL_NUMBER_FIELDS
+    if f.name in _OPTIONAL_STR_FIELDS:
+        return isinstance(value, str)
+    if f.name in _OPTIONAL_NUMBER_FIELDS:
+        return _is_finite_number(value)
+    default = f.default
+    if isinstance(default, bool):
+        return isinstance(value, bool)
+    if isinstance(default, int):
+        return isinstance(value, int) and not isinstance(value, bool)
+    if isinstance(default, float):
+        return _is_finite_number(value)
+    if isinstance(default, str):
+        return isinstance(value, str)
+    return False
 
 
 @dataclass
@@ -55,6 +85,31 @@ class OverlayItem:
     audio_start: float = 0.0    # For audio element: start point in source audio file
     audio_end: float | None = None  # For audio element: finish point in source audio file
     audio_volume: float = 1.0   # Audio volume multiplier (0.0 to 2.0, default 1.0 = 100%)
+
+    @classmethod
+    def from_dict(cls, data: object) -> OverlayItem | None:
+        """Build an item from an untrusted mapping such as clipboard JSON.
+
+        Unknown keys are dropped, a value of the wrong type rejects the whole
+        item, the item type must be one the editor knows, and the id is always
+        regenerated.
+        """
+        if not isinstance(data, dict):
+            return None
+        kwargs: dict[str, object] = {}
+        for f in fields(cls):
+            if f.name == "id" or f.name not in data:
+                continue
+            value = data[f.name]
+            if not _accepts_overlay_value(f, value):
+                return None
+            kwargs[f.name] = value
+        if kwargs.get("item_type", "text") not in OVERLAY_ITEM_TYPES:
+            return None
+        try:
+            return cls(**kwargs)
+        except (TypeError, ValueError):
+            return None
 
     def __post_init__(self) -> None:
         if self.media_path is not None:
