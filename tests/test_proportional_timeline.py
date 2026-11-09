@@ -90,7 +90,7 @@ def test_segment_card_responsive_header():
     assert h_small == h_wide == h_tiny
 
 
-def test_proportional_timeline_ui_integration():
+def test_proportional_timeline_ui_integration(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.proportional")
 
     def run_test(app):
@@ -104,7 +104,7 @@ def test_proportional_timeline_ui_integration():
             assert v_policy == Gtk.PolicyType.NEVER
 
             # Load video (5 seconds)
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             assert len(win.timeline.segments) == 1
 
             # Split at 3.5s -> Segment 1: 3.5s (70%), Segment 2: 1.5s (30%)
@@ -147,7 +147,7 @@ def test_proportional_timeline_ui_integration():
     app.run(["test"])
 
 
-def test_window_does_not_grow_infinitely():
+def test_window_does_not_grow_infinitely(sample_video):
     """Verify recalculate_layout does not enter a growth loop after opening video and splitting."""
     from gi.repository import Gio
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.growth_check", flags=Gio.ApplicationFlags.NON_UNIQUE)
@@ -156,7 +156,7 @@ def test_window_does_not_grow_infinitely():
         win = None
         try:
             win = MainWindow(application=app)
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             win.current_global_time = 1.5
             win.split_at_cursor()
 
@@ -174,7 +174,7 @@ def test_window_does_not_grow_infinitely():
     app.run([])
 
 
-def test_all_actions_recalculate_proportions_and_no_scroll():
+def test_all_actions_recalculate_proportions_and_no_scroll(sample_video):
     """Verify delete, split, paste, add video, and resize all recalculate within window size with zero horizontal scroll."""
     from gi.repository import Gio
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.actions_recalc", flags=Gio.ApplicationFlags.NON_UNIQUE)
@@ -186,7 +186,7 @@ def test_all_actions_recalculate_proportions_and_no_scroll():
             win.set_default_size(1000, 700)
 
             # 1. Open video
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             assert len(win.timeline.segments) == 1
             card_open = list(win.timeline_widget._cards.values())[0]
             w_open = card_open.get_size_request()[0]
@@ -218,7 +218,7 @@ def test_all_actions_recalculate_proportions_and_no_scroll():
             assert sum(w_after_del) > sum(w_pasted[:2])
 
             # 5. Add another video
-            win._add_video_to_timeline(Path("/tmp/test_video.mp4"), replace=False)
+            win._add_video_to_timeline(sample_video, replace=False)
             assert len(win.timeline.segments) == 3
 
             # Verify no horizontal scrollbar mapped / external policy preserved
@@ -306,7 +306,7 @@ def test_thumbnail_sync_on_split_and_placeholders():
     app.run([])
 
 
-def test_small_segment_minimum_thumb_size():
+def test_small_segment_minimum_thumb_size(sample_video):
     """Verify that narrow segments display only 1 thumbnail to prevent tiny illegible slivers."""
     from gi.repository import Gio
     app = Adw.Application(application_id="io.github.thor27.video-cut.test_min_thumb_size", flags=Gio.ApplicationFlags.NON_UNIQUE)
@@ -318,7 +318,7 @@ def test_small_segment_minimum_thumb_size():
             win.set_default_size(1000, 700)
 
             # Load video
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             # Split video into a very small 0.5s segment and a remaining 4.5s segment
             win.current_global_time = 0.5
             win.split_at_cursor()

@@ -2,7 +2,6 @@
 
 import subprocess
 import time
-from pathlib import Path
 
 import gi
 import pytest
@@ -36,7 +35,7 @@ def sample_image(tmp_path):
     return img_path
 
 
-def test_load_image_initial_and_add(sample_image):
+def test_load_image_initial_and_add(sample_image, sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.image")
     test_error = None
 
@@ -86,17 +85,16 @@ def test_load_image_initial_and_add(sample_image):
                 Gtk.FileDialog.save = orig_save
 
             # 2. Add video after the image
-            v1 = Path("/tmp/test_video.mp4")
-            if v1.exists():
-                win.load_video(v1, replace=False)
-                assert len(win.timeline.segments) == 2
-                assert abs(win.timeline.total_duration - 6.0) < 0.1
+            v1 = sample_video
+            win.load_video(v1, replace=False)
+            assert len(win.timeline.segments) == 2
+            assert abs(win.timeline.total_duration - 6.0) < 0.1
 
-                # 3. Add another image
-                win.load_video(sample_image, replace=False)
-                wait_for(lambda: len(win.timeline.segments) == 3)
-                assert abs(win.timeline.total_duration - 7.0) < 0.1
-                assert win.timeline.segments[2].display_name == sample_image.name
+            # 3. Add another image
+            win.load_video(sample_image, replace=False)
+            wait_for(lambda: len(win.timeline.segments) == 3)
+            assert abs(win.timeline.total_duration - 7.0) < 0.1
+            assert win.timeline.segments[2].display_name == sample_image.name
         except Exception as exc:
             test_error = exc
         finally:
@@ -111,10 +109,8 @@ def test_load_image_initial_and_add(sample_image):
 
 
 
-def test_export_concatenation_with_image(tmp_path, sample_image):
-    v1 = Path("/tmp/test_video.mp4")
-    if not v1.exists():
-        pytest.skip("Test video /tmp/test_video.mp4 not found")
+def test_export_concatenation_with_image(tmp_path, sample_image, sample_video):
+    v1 = sample_video
 
     cache_dir = tmp_path / "img_cache"
     img_video = ImageService.convert_image_to_video(sample_image, cache_dir=cache_dir, duration=1.0)

@@ -1,6 +1,5 @@
 """Unit tests for deleting the last remaining segment and returning to the empty state."""
 
-from pathlib import Path
 
 import gi
 
@@ -11,7 +10,7 @@ from gi.repository import Adw
 from video_cut.window import MainWindow
 
 
-def test_delete_last_segment_returns_to_empty_state_and_undo():
+def test_delete_last_segment_returns_to_empty_state_and_undo(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.deletelast")
     err = []
 
@@ -31,7 +30,7 @@ def test_delete_last_segment_returns_to_empty_state_and_undo():
             assert win.btn_export.get_sensitive() is False
 
             # Load 1 video
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
             assert len(win.timeline.segments) == 1
             assert win.player_stack.get_visible_child_name() == "player"
             assert win.timeline_widget.get_visible() is True

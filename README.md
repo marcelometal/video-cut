@@ -81,9 +81,8 @@ Create a virtual environment that has access to system GTK 4 / PyGObject binding
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 
-# Install in editable mode (including pytest for testing)
-pip install -e .
-pip install pytest
+# Install in editable mode with the test and lint tools
+pip install -e ".[dev]"
 
 # Run the application
 video-cut
@@ -94,8 +93,14 @@ video-cut /path/to/my_video.mp4
 
 ### Running Tests
 
+The suite generates its own sample clips with `ffmpeg`, so no fixture files are
+needed. On a machine without a display, run it under Xvfb:
+
 ```bash
 pytest tests/
+
+# Headless (CI, servers)
+xvfb-run -a pytest tests/
 ```
 
 ### Architecture

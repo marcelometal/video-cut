@@ -1,5 +1,6 @@
 """Unit tests for SegmentCard needle positioning, filmstrip margins, and scrub drag handling."""
 
+import time
 from pathlib import Path
 
 import gi
@@ -467,7 +468,7 @@ def test_split_pill_hover_and_context_menu_top_left():
         raise err[0]
 
 
-def test_split_pill_left_boundary_not_clipped_in_timeline():
+def test_split_pill_left_boundary_not_clipped_in_timeline(sample_video):
     """Verify that in the timeline, the split pill at ratio 0.0 has positive coordinate and is never clipped by scrolled_window."""
     from video_cut.window import MainWindow
     app = Adw.Application(application_id="io.github.thor27.video-cut.test.unclipped_pill")
@@ -477,7 +478,7 @@ def test_split_pill_left_boundary_not_clipped_in_timeline():
         win = None
         try:
             win = MainWindow(application=app)
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
 
             tw = win.timeline_widget
             assert tw.cards_box.get_margin_start() == 0, "cards_box must have margin_start == 0 for clean edge-to-edge layout"
@@ -505,7 +506,7 @@ def test_split_pill_left_boundary_not_clipped_in_timeline():
         raise err[0]
 
 
-def test_split_pill_centralization_across_languages():
+def test_split_pill_centralization_across_languages(sample_video):
     """Verify split pill is dynamically centered over the orange playhead needle regardless of language and text length."""
     from video_cut.i18n import init_i18n
     from video_cut.window import MainWindow
@@ -519,16 +520,18 @@ def test_split_pill_centralization_across_languages():
             try:
                 init_i18n(target_lang)
                 win = MainWindow(application=app)
-                win.load_video(Path("/tmp/test_video.mp4"))
+                win.load_video(sample_video)
                 win.present()
-
-                ctx = GLib.MainContext.default()
-                for _ in range(100):
-                    ctx.iteration(False)
 
                 tw = win.timeline_widget
                 card = list(tw._cards.values())[0]
-                card.set_needle_ratio(0.5)
+                ctx = GLib.MainContext.default()
+                deadline = time.monotonic() + 5.0
+                while card.get_width() == 0 and time.monotonic() < deadline:
+                    ctx.iteration(False)
+                assert card.get_width() > 0, "segment card was never allocated"
+
+                win._on_timeline_seek(2.5)
                 tw.show_split_pill()
 
                 for _ in range(100):

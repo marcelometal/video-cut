@@ -17,6 +17,13 @@ dependencies = [
     "Pillow>=9.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-benchmark",
+    "ruff",
+]
+
 [project.scripts]
 video-cut = "video_cut.__main__:main"
 

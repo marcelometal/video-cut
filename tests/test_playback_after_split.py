@@ -12,14 +12,14 @@ from gi.repository import Adw, GLib, Gtk
 from video_cut.window import MainWindow
 
 
-def test_playback_after_split():
+def test_playback_after_split(sample_video):
     app = Adw.Application(application_id="io.github.thor27.video-cut.testsplitplay")
 
     def run_test(app):
         win = None
         try:
             win = MainWindow(application=app)
-            win.load_video(Path("/tmp/test_video.mp4"))
+            win.load_video(sample_video)
 
             assert len(win.timeline.segments) == 1
             assert abs(win.timeline.total_duration - 5.0) < 0.1
